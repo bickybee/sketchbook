@@ -7,11 +7,10 @@ import com.goebl.simplify.*;
 import codeanticode.tablet.*; 
 import controlP5.*; 
 import java.awt.geom.*; 
-import hermes.*; 
-import hermes.hshape.*; 
-import hermes.postoffice.*; 
 import org.dyn4j.*; 
-import java.util.List; 
+import org.dyn4j.geometry.*; 
+import org.dyn4j.*; 
+import org.dyn4j.geometry.hull.*; 
 import org.dyn4j.*; 
 import org.dyn4j.geometry.*; 
 import org.dyn4j.geometry.decompose.*; 
@@ -40,8 +39,6 @@ public class paint extends PApplet {
 
 
 
-
-
 //canvas stuff
 Tablet tablet;
 ArrayList<Point> currentStroke;
@@ -50,8 +47,6 @@ int currentColour;
 int bg;
 StrokeGroup selectedStrokes;
 
-//HERMES
-World currentWorld;
 //penStuff
 Mode penMode;
 boolean translating;
@@ -69,22 +64,31 @@ ColorPicker cp;
 int buttonW = 60;
 int buttonH = 40;
 Button undoBtn;
+Button objBtn;
 RadioButton modeRadio;
 RadioButton colourRadio;
 RadioButton layerRadio;
 
+//GAME STUFF!!!!!!!
+ArrayList<Entity> entities;
+Player player;
+//Player player;
+
 //any initialization goes here
 public void setup() {
      //fullscreen on second screen (tablet)
-    
-    //buttons activate when you add them.... lame
+    //controlP5 setup
     gui = new ControlP5(this);
     undoBtn = gui.addButton("undo")
         .setPosition(0,0)
         .setSize(buttonW, buttonH)
         .activateBy(ControlP5.PRESSED);
+    objBtn = gui.addButton("gameObj")
+        .setPosition(0,buttonH)
+        .setSize(buttonW, buttonH)
+        .activateBy(ControlP5.PRESSED);
     colourRadio = gui.addRadioButton("colour")
-                .setPosition(0,buttonH+10)
+                .setPosition(0,buttonH*2+10)
                 .setSize(buttonW, buttonH)
                 .setColorForeground(color(120))
                 .setColorActive(color(200))
@@ -97,7 +101,7 @@ public void setup() {
                 .addItem("green",color(0,255,0));
     colourRadio.getItem("black").setState(true); //default
     modeRadio = gui.addRadioButton("mode")
-                .setPosition(0,buttonH*5+20)
+                .setPosition(0,buttonH*6+20)
                 .setSize(buttonW, buttonH)
                 .setColorForeground(color(120))
                 .setColorActive(color(200))
@@ -109,18 +113,7 @@ public void setup() {
                 .addItem("select",3)
                 .addItem("box select",4);
     modeRadio.getItem("draw").setState(true); //default
-    layerRadio = gui.addRadioButton("layer")
-                .setPosition(0,buttonH*9+30)
-                .setSize(buttonW, buttonH)
-                .setColorForeground(color(120))
-                .setColorActive(color(200))
-                .setColorLabel(color(102))
-                .setItemsPerRow(1)
-                .setSpacingColumn(0)
-                .addItem("layer1",1)
-                .addItem("layer2",2)
-                .addItem("layer3",3);
-    //instantiate stuff after adding buttons!
+
     tablet = new Tablet(this);
     bg = color(255);
     currentColour = color(0,0,0);
@@ -132,8 +125,29 @@ public void setup() {
     penMode = Mode.DRAW;
     translating = false;
     //
+    entities = new ArrayList<Entity>();
     background(bg);
 }
+
+//drawing loop
+//basically the tablet-input handler
+public void draw() {
+     
+    if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
+    else if (!tablet.isLeftDown() && penIsDown) penUp();
+    else penHover();
+
+    penSpeed = abs(mouseX-pmouseX) + abs(mouseY-pmouseY);
+    tablet.saveState();
+
+}
+
+public void keyPressed(){
+    if (player!=null){
+        player.keyPressed();
+    }
+}
+
 
 //GUI handler
 public void controlEvent (ControlEvent e){
@@ -145,13 +159,25 @@ public void controlEvent (ControlEvent e){
         }
     }
 
+    //create Entity out of current selection 
+    else if (e.isFrom(objBtn)){
+        if (selectedStrokes.getSize() != 0){
+            player = new Player(0, selectedStrokes);
+            entities.add(player);
+            deselectStrokes();
+            reDraw();
+        }
+    }
+
+    //CREATE GAME OBJ
+
     //MODES
     else if (e.isFrom(modeRadio)){
         switch ((int)e.getValue()){
 
             //DRAW
             case 1:
-                clearSelection();
+                deselectStrokes();
                 reDraw();
                 penMode = Mode.DRAW;
                 break;
@@ -198,17 +224,123 @@ public void controlEvent (ControlEvent e){
     }
 }
 
-//drawing loop
-//basically the tablet-input handler
-public void draw() {
-     
-    if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
-    else if (!tablet.isLeftDown() && penIsDown) penUp();
-    else penHover();
 
-    penSpeed = abs(mouseX-pmouseX) + abs(mouseY-pmouseY);
-    tablet.saveState();
+
+
+
+class Entity{
+
+	StrokeGroup strokes;
+  Polygon hull;
+  int id;
+
+	Entity(int i, StrokeGroup sg){
+    id = i;
+    strokes = sg;
+    hull = sg.convexHull();
+	}
+
+  public void drawHull() {
+    drawPolygon(hull);
+  }
+
+  public void draw(){
+    drawHull();
+  }
+
+  public void translate(float dx, float dy){
+      strokes.translate(dx, dy); //hull moves with stroke points!!!!!!
+  }
+
 }
+
+// paint helper functions
+
+//redraw everything
+public void reDraw(){
+    background(bg);
+    drawAllStrokes();
+    drawAllEntities();
+}
+
+//draw points corresponding to current pen location
+public void draw(ArrayList<Point> points){
+    stroke(currentColour);
+    //strokeWeight(2);
+    // noFill();
+    // beginShape();
+    // curveVertex(points.get(0).getX(), points.get(0).getY());
+    // for (int i = 0; i < points.size(); i++){
+    //     curveVertex(points.get(i).getX(), points.get(i).getY());
+    // }
+    // if (points.size()>1) curveVertex(points.get(points.size()-1).getX(), points.get(points.size()-1).getY());
+    // endShape();
+    for (int i = 1; i < points.size(); i++){
+        strokeWeight(points.get(i).weight);
+        line(points.get(i).getX(), points.get(i).getY(), points.get(i-1).getX(), points.get(i-1).getY());;
+    }
+}
+
+//draw all strokes
+public void drawAllStrokes(){
+    selectedStrokes.drawBounds();
+    for (Stroke selected: selectedStrokes.getMembers()){
+        selected.drawSelected();
+    }
+    for (Stroke stroke: allStrokes){
+        stroke.draw();
+    }
+}
+
+public void drawAllEntities(){
+    for (Entity g: entities){
+        g.draw();
+    }
+}
+
+//draw a box given opposite corners
+public void drawBox(float x1, float y1, float x2, float y2){
+    line(x1,y1,x2,y1);
+    line(x2,y1,x2,y2);
+    line(x2,y2,x1,y2);
+    line(x1,y2,x1,y1);
+}
+
+//undo last drawn stroke
+public void undoStroke(){
+    allStrokes.remove(allStrokes.size()-1);
+    reDraw();
+}
+
+//erase current selection
+public void eraseSelection(){
+    for (Stroke s: selectedStrokes.getMembers()){
+        allStrokes.remove(s); //presumably slow, but it works
+    }
+    selectedStrokes = new StrokeGroup();
+    reDraw();
+}
+
+//unselect current selection
+public void deselectStrokes(){
+    for (Stroke s: allStrokes){
+        if (s.isSelected()) s.deselect();
+    }
+    selectedStrokes = new StrokeGroup();
+}
+
+//for testing
+public void drawPolygon(Polygon p){
+    strokeWeight(5);
+    stroke(color(255,0,0));
+    Vector2[] vertices = new Vector2[0];
+    vertices = p.getVertices();
+    for (int i = 1; i < vertices.length; i++){
+        line((float)vertices[i-1].x, (float)vertices[i-1].y, (float)vertices[i].x, (float)vertices[i].y);
+    }
+    line((float)vertices[vertices.length-1].x, (float)vertices[vertices.length-1].y, (float)vertices[0].x, (float)vertices[0].y );
+}
+//PEN HANDLERS
 
 public void penDown(){
 
@@ -259,7 +391,7 @@ public void penDown(){
         //just pressed: start new selection
         else if (!penIsDown){
             penIsDown = true;
-            clearSelection();
+            deselectStrokes();
             reDraw();
             if (penMode==Mode.BOXSELECT){
                 sx1 = mouseX;
@@ -285,10 +417,7 @@ public void penDown(){
             sy2 = mouseY;
             reDraw();
             stroke(102);
-            line(sx1,sy1,sx2,sy1);
-            line(sx2,sy1,sx2,sy2);
-            line(sx2,sy2,sx1,sy2);
-            line(sx1,sy2,sx1,sy1);
+            drawBox(sx1,sy1,sx2,sy2);
         }
     }
 
@@ -334,239 +463,25 @@ public void penHover(){
         } 
     }
 }
+class Player extends Entity{
 
-
-public void undoStroke(){
-    allStrokes.remove(allStrokes.size()-1);
-    reDraw();
-}
-
-public void drawAllStrokes(){
-    selectedStrokes.drawBounds();
-    for (Stroke selected: selectedStrokes.getMembers()){
-        selected.drawSelected();
-    }
-    for (Stroke stroke: allStrokes){
-        stroke.draw();
-    }
-}
-
-public void clearSelection(){
-    for (Stroke s: allStrokes){
-        if (s.isSelected()) s.deselect();
-    }
-    selectedStrokes = new StrokeGroup();
-}
-
-public void eraseSelection(){
-    for (Stroke s: selectedStrokes.getMembers()){
-        allStrokes.remove(s); //presumably slow, but it works
-    }
-    selectedStrokes = new StrokeGroup();
-    reDraw();
-}
-
-public void reDraw(){
-    background(bg);
-    drawAllStrokes();
-}
-
-public void draw(ArrayList<Point> points){
-    stroke(currentColour);
-    //strokeWeight(2);
-    // noFill();
-    // beginShape();
-    // curveVertex(points.get(0).getX(), points.get(0).getY());
-    // for (int i = 0; i < points.size(); i++){
-    //     curveVertex(points.get(i).getX(), points.get(i).getY());
-    // }
-    // if (points.size()>1) curveVertex(points.get(points.size()-1).getX(), points.get(points.size()-1).getY());
-    // endShape();
-    for (int i = 1; i < points.size(); i++){
-        strokeWeight(points.get(i).weight);
-        line(points.get(i).getX(), points.get(i).getY(), points.get(i-1).getX(), points.get(i-1).getY());;
-    }
-}
-/*
- * Copyright (c) 2010-2016 William Bittle  http://www.dyn4j.org/
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without modification, are permitted 
- * provided that the following conditions are met:
- * 
- *   * Redistributions of source code must retain the above copyright notice, this list of conditions 
- *     and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright notice, this list of conditions 
- *     and the following disclaimer in the documentation and/or other materials provided with the 
- *     distribution.
- *   * Neither the name of dyn4j nor the names of its contributors may be used to endorse or 
- *     promote products derived from this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR 
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND 
- * FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR 
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER 
- * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT 
- * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
-
-class GiftWrap{
-	/* (non-Javadoc)
-	 * @see org.dyn4j.geometry.hull.HullGenerator#generate(org.dyn4j.geometry.Point[])
-	 */
-
-	public PVector[] generate(Point[] points) {
-		// check for null array
-		if (points == null) throw new NullPointerException("null points");
-		
-		// get the size
-		int size = points.length;
-		PVector[] hullPoints = new PVector[size];
-		// check the size
-		if (size <= 2){
-			for (int i = 0; i < size; i ++){
-				hullPoints[i] = new PVector(points[i].getX(), points[i].getY());
-			}
-		}
-		
-		// find the left most point
-		double x = Double.MAX_VALUE;
-		Point leftMost = null;
-		for (int i = 0; i < size; i++) {
-			Point p = points[i];
-			// check for null points
-			if (p == null) throw new NullPointerException("null point");
-			// check the x cooridate
-			if (p.getX() < x) {
-				x = p.getX();
-				leftMost = p;
-			}
-		}
-		
-		// initialize the hull size to the worst case size
-		List<Point> hull = new ArrayList<Point>(size);
-		do {
-			// add the left most point
-			hull.add(leftMost);
-			// check all the points to see if anything is more left than the next point
-			Point maxLeft = points[0];
-			// check if the first point in the array is the leftMost point
-			// if so, then we need to choose another point so that the location
-			// check performs correctly
-			if (maxLeft == leftMost) maxLeft = points[1];
-			// loop over the points to find a more left point than the current
-			for (int j = 0; j < size; j++) {
-				Point t = points[j];
-				// don't worry about the points that create the line we are inspecting
-				// since we know that they are already the left most
-				if (t == maxLeft) continue;
-				if (t == leftMost) continue;
-				// check the point relative to the current line
-				if (getLocation(t, leftMost, maxLeft) < 0.0f) {
-					// this point is further left than the current point
-					maxLeft = t;
-				}
-			}
-			// set the new leftMost point
-			leftMost = maxLeft;
-			// loop until we repeat the first leftMost point
-		} while (leftMost != hull.get(0));
-		
-		// copy the list into an array
-		hullPoints = new PVector[hull.size()];
-		for (int i = 0; i < hullPoints.length; i++){
-			hullPoints[i] = new PVector(hull.get(i).getX(), hull.get(i).getY());
-		}
-		
-		// return the array
-		return hullPoints;
+	static final float SPEED = 10;
+	
+	Player(int i, StrokeGroup sg){
+		super(i, sg);
 	}
 
-	public double getLocation(Point point, Point linePoint1, Point linePoint2) {
-		return (linePoint2.getX() - linePoint1.getX()) * (point.getY() - linePoint1.getY()) -
-			  (point.getX() - linePoint1.getX()) * (linePoint2.getY() - linePoint1.getY());
+	public void keyPressed(){
+		print("keypressed \n");
+		if (key==CODED){
+			if (keyCode == UP) this.translate(0,-SPEED);
+			else if (keyCode == DOWN) this.translate(0,SPEED);
+			else if (keyCode == LEFT) this.translate(-SPEED,0);
+			else if (keyCode == RIGHT) this.translate(SPEED,0);
+			reDraw();
+		}
 	}
-}
-// paint helper functions
-//pen modes
-//more to come
-public enum Mode {
-	DRAW, ERASE, SELECT, BOXSELECT;
-}
-static final int SHAKE_STEP = 10;
 
-class Player extends Being {
-    boolean _stroke, _up, _down, _left, _right;
-
-
-    Player(StrokeGroup sg) {
-        super(new HPolygon(new PVector((sg.getRight()-sg.getLeft())/2, (sg.getBottom()-sg.getTop())/2), sg.convexHull()));
-        _up = false;
-        _down = false;
-        _left = false;
-        _right = false;
-    }
-
-  public void update() {
-    if (_up) {
-      _position.y -= SHAKE_STEP;
-    } 
-    if (_right) {
-      _position.x += SHAKE_STEP;
-    } 
-    if (_down) {
-      _position.y += SHAKE_STEP;
-    } 
-    if (_left) {
-      _position.x -= SHAKE_STEP;
-    }
-    _stroke = false;
-  }
-
-    public void draw() {
-        noFill();
-          strokeWeight(5);
-          stroke(200);
-        _shape.draw();
-    }
-
-
-public void receive(KeyMessage m) {
-  int code = m.getKeyCode();
-  if (m.isPressed()) {
-    if (code == POCodes.Key.UP) {
-      _up = true;
-    } 
-    else if (code == POCodes.Key.RIGHT) {
-      _right = true;
-    } 
-    else if (code == POCodes.Key.DOWN) {
-      _down = true;
-    } 
-    else if (code == POCodes.Key.LEFT) {
-      _left = true;
-    }
-  } 
-  else {
-    if (code == POCodes.Key.UP) {
-      _up = false;
-    } 
-    else if (code == POCodes.Key.RIGHT) {
-      _right = false;
-    } 
-    else if (code == POCodes.Key.DOWN) {
-      _down = false;
-    } 
-    else if (code == POCodes.Key.LEFT) {
-      _left = false;
-    }
-  }
-}
-
-    
 }
 
 
@@ -576,19 +491,23 @@ class Point{
     
     float weight;
     PVector coords;
+    Vector2 coordsV2;
 
 
     Point(float x, float y){
         coords = new PVector(x, y);
+        coordsV2 = new Vector2((double) x, (double) y);
     }
 
     Point(float x, float y, float w){
         coords = new PVector(x, y);
+        coordsV2 = new Vector2((double) x, (double) y);
         weight = w;
     }
 
     public void translate(float xOff, float yOff){
-        coords.add(xOff, yOff);
+        coords.add(xOff, yOff, 0);
+        coordsV2.add(xOff, yOff);
     }
     
     public float getX(){
@@ -597,6 +516,10 @@ class Point{
     
     public float getY(){
         return coords.y;
+    }
+
+    public Vector2 getVector2(){
+        return coordsV2;
     }
 
     public PVector getCoords(){
@@ -627,6 +550,8 @@ class Stroke{
     int colour;
     float top, bottom, left, right; //bounding box coordinates
     boolean selected;
+    boolean belongsToObj;
+    int gameObjId;
     //fix this >>>
     private PointExtractor<Point> strokePointExtractor = new PointExtractor<Point>() {
             @Override
@@ -649,6 +574,8 @@ class Stroke{
         left = Float.MAX_VALUE;
         right = 0;
         selected = false;
+        belongsToObj = false;
+        gameObjId = -1;
         points = new Point[size];
 
         //copy the points over
@@ -836,9 +763,9 @@ class Stroke{
 // GETTERS AND SETTERS
 // --------------------------------------
 
-public int getSize(){
-    return size;
-}
+    public int getSize(){
+        return size;
+    }
 
  public Point[] getPoints() {
         return points;
@@ -899,6 +826,11 @@ public int getSize(){
     public void deselect(){
         selected = false;
     }
+
+    public void addToGameObj(int id){
+        gameObjId = id;
+        belongsToObj = true;
+    }
 }
 
 
@@ -913,6 +845,7 @@ class StrokeGroup{
 	//List<Polygon> polygons;
 	float top, bottom, left, right; //group bounding box
 	boolean selected;
+	int size;
 
 	StrokeGroup(){
 		members = new ArrayList<Stroke>();
@@ -925,18 +858,18 @@ class StrokeGroup{
         bottom = 0;
         left = Float.MAX_VALUE;
         right = 0;
+        size = 0;
 
 	}
 
 	public void addMember(Stroke s){
 		members.add(s);
+		size += s.keyPoints.length;
 		Collections.addAll(allKeyPoints, s.keyPoints);
 		if (s.left < left) left = s.left;
         if (s.right > right) right = s.right;
         if (s.top < top) top = s.top;
         if (s.bottom > bottom) bottom = s.bottom;
-
-        //this.decompose();
 	}
 
 	public boolean boundsContain(float x, float y){
@@ -944,13 +877,16 @@ class StrokeGroup{
         else return false;
     }
 
+    public void draw(){
+    	for (Stroke s: members){
+    		s.draw();
+    	}
+    }
+
     public void drawBounds(){
         stroke(102);
         strokeWeight(2);
-        line(left, top, right, top);
-        line(right, top, right, bottom);
-        line(right, bottom, left, bottom);
-        line(left, bottom, left, top);
+        drawBox(left, top, right, bottom);
     }
 
     public void translate(float xOff, float yOff){
@@ -963,12 +899,14 @@ class StrokeGroup{
 		}
     }
 
-    public PVector[] convexHull(){
-    	GiftWrap wrapper = new GiftWrap();
-    	Point[] inputPoints = new Point[0];
-    	inputPoints = allKeyPoints.toArray(inputPoints);
-    	return wrapper.generate(inputPoints);
-    }
+     public Polygon convexHull(){
+	    GiftWrap wrapper = new GiftWrap();
+	    Vector2[] inputPoints = new Vector2[size];
+	    for (int i = 0; i < size; i++){
+	      inputPoints[i] = allKeyPoints.get(i).getVector2();
+	    }
+	    return new Polygon (wrapper.generate(inputPoints));
+	  }
 
     // void decompose(){
     // 	Vector2[] inputPoints = new Vector2[0];
@@ -985,8 +923,16 @@ class StrokeGroup{
 // GETTERS AND SETTERS
 // --------------------------------------
 
+	public ArrayList<Point> getKeyPoints(){
+		return allKeyPoints;
+	}
+
 	public ArrayList<Stroke> getMembers() {
 		return members;
+	}
+
+	public int getSize(){
+		return size;
 	}
 
 	public void setMembers(ArrayList<Stroke> members) {
@@ -1033,28 +979,6 @@ class StrokeGroup{
 		this.selected = selected;
 	}
 
-}
-static final int SQUARE_NUM = 10;
-
-class TemplateWorld extends World {
-  TemplateWorld(int portIn, int portOut) {
-    super(portIn, portOut);
-  }
-
-  public void draw() {
-    background(0);
-    super.draw();
-}
-
-  public void setup() {
-    //GlitchyGroup g = new GlitchyGroup(this);
-    // register(g);
-    //     for (int i = 0; i < SQUARE_NUM; i++) {
-	   //      g.addSquare();
-    // }
-    //register(g,g,new SquareInteractor());
-    //subscribe(g, POCodes.Key.A);
-  }
 }
     public void settings() {  fullScreen(2); }
     static public void main(String[] passedArgs) {

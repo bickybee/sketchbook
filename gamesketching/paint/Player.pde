@@ -1,67 +1,20 @@
-class Player{
+class Player extends Entity{
 
-	StrokeGroup strokes;
-
-	Player(StrokeGroup sg){
-
+	static final float SPEED = 10;
+	
+	Player(int i, StrokeGroup sg){
+		super(i, sg);
 	}
 
-	  public void update() {
-    if (_up) {
-      this.move(0,-STEP);
-    } 
-    if (_right) {
-      this.move(STEP,0);
-    } 
-    if (_down) {
-      this.move(0,STEP);
-    } 
-    if (_left) {
-      this.move(-STEP,0);
-    }
-  }
-
-    public void draw() {
-        strokes.draw();
-    }
-
-
-public void receive(KeyMessage m) {
-  int code = m.getKeyCode();
-  if (m.isPressed()) {
-    if (code == POCodes.Key.UP) {
-      _up = true;
-    } 
-    else if (code == POCodes.Key.RIGHT) {
-      _right = true;
-    } 
-    else if (code == POCodes.Key.DOWN) {
-      _down = true;
-    } 
-    else if (code == POCodes.Key.LEFT) {
-      _left = true;
-    }
-  } 
-  else {
-    if (code == POCodes.Key.UP) {
-      _up = false;
-    } 
-    else if (code == POCodes.Key.RIGHT) {
-      _right = false;
-    } 
-    else if (code == POCodes.Key.DOWN) {
-      _down = false;
-    } 
-    else if (code == POCodes.Key.LEFT) {
-      _left = false;
-    }
-  }
-}
-
-public void move(int dx, int dy){
-    _position.x += dx;
-    _position.y += dy;
-    this.strokes.translate(dx, dy);
-}
+	void keyPressed(){
+		print("keypressed \n");
+		if (key==CODED){
+			if (keyCode == UP) this.translate(0,-SPEED);
+			else if (keyCode == DOWN) this.translate(0,SPEED);
+			else if (keyCode == LEFT) this.translate(-SPEED,0);
+			else if (keyCode == RIGHT) this.translate(SPEED,0);
+			reDraw();
+		}
+	}
 
 }

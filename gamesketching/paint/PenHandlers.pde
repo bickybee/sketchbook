@@ -49,7 +49,7 @@ void penDown(){
         //just pressed: start new selection
         else if (!penIsDown){
             penIsDown = true;
-            clearSelection();
+            deselectStrokes();
             reDraw();
             if (penMode==Mode.BOXSELECT){
                 sx1 = mouseX;
@@ -75,10 +75,7 @@ void penDown(){
             sy2 = mouseY;
             reDraw();
             stroke(102);
-            line(sx1,sy1,sx2,sy1);
-            line(sx2,sy1,sx2,sy2);
-            line(sx2,sy2,sx1,sy2);
-            line(sx1,sy2,sx1,sy1);
+            drawBox(sx1,sy1,sx2,sy2);
         }
     }
 

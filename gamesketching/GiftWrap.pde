@@ -29,17 +29,17 @@ class GiftWrap{
 	 * @see org.dyn4j.geometry.hull.HullGenerator#generate(org.dyn4j.geometry.Point[])
 	 */
 
-	public PVector[] generate(Point[] points) {
+	public Point[] generate(Point[] points) {
 		// check for null array
 		if (points == null) throw new NullPointerException("null points");
 		
 		// get the size
 		int size = points.length;
-		PVector[] hullPoints = new PVector[size];
+		Point[] hullPoints = new Point[size];
 		// check the size
 		if (size <= 2){
 			for (int i = 0; i < size; i ++){
-				hullPoints[i] = new PVector(points[i].getX(), points[i].getY());
+				hullPoints[i] = new Point(points[i].getX(), points[i].getY());
 			}
 		}
 		
@@ -87,9 +87,9 @@ class GiftWrap{
 		} while (leftMost != hull.get(0));
 		
 		// copy the list into an array
-		hullPoints = new PVector[hull.size()];
+		hullPoints = new Point[hull.size()];
 		for (int i = 0; i < hullPoints.length; i++){
-			hullPoints[i] = new PVector(hull.get(i).getX(), hull.get(i).getY());
+			hullPoints[i] = new Point(hull.get(i).getX(), hull.get(i).getY());
 		}
 		
 		// return the array

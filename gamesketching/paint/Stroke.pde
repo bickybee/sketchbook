@@ -18,6 +18,8 @@ class Stroke{
     color colour;
     float top, bottom, left, right; //bounding box coordinates
     boolean selected;
+    boolean belongsToObj;
+    int gameObjId;
     //fix this >>>
     private PointExtractor<Point> strokePointExtractor = new PointExtractor<Point>() {
             @Override
@@ -40,6 +42,8 @@ class Stroke{
         left = Float.MAX_VALUE;
         right = 0;
         selected = false;
+        belongsToObj = false;
+        gameObjId = -1;
         points = new Point[size];
 
         //copy the points over
@@ -227,9 +231,9 @@ class Stroke{
 // GETTERS AND SETTERS
 // --------------------------------------
 
-public int getSize(){
-    return size;
-}
+    public int getSize(){
+        return size;
+    }
 
  public Point[] getPoints() {
         return points;
@@ -289,5 +293,10 @@ public int getSize(){
 
     void deselect(){
         selected = false;
+    }
+
+    void addToGameObj(int id){
+        gameObjId = id;
+        belongsToObj = true;
     }
 }

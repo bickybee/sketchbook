@@ -3,6 +3,7 @@ import codeanticode.tablet.*;
 import controlP5.*;
 import java.awt.geom.*;
 import org.dyn4j.*;
+import org.dyn4j.geometry.*;
 
 //canvas stuff
 Tablet tablet;
@@ -29,15 +30,55 @@ ColorPicker cp;
 int buttonW = 60;
 int buttonH = 40;
 Button undoBtn;
-Button playerBtn;
+Button objBtn;
 RadioButton modeRadio;
 RadioButton colourRadio;
 RadioButton layerRadio;
 
+//GAME STUFF!!!!!!!
+ArrayList<Entity> entities;
+Player player;
+//Player player;
+
 //any initialization goes here
 void setup() {
-    size(800,600); //fullscreen on second screen (tablet)
-    setupP5();
+    fullScreen(2); //fullscreen on second screen (tablet)
+    //controlP5 setup
+    gui = new ControlP5(this);
+    undoBtn = gui.addButton("undo")
+        .setPosition(0,0)
+        .setSize(buttonW, buttonH)
+        .activateBy(ControlP5.PRESSED);
+    objBtn = gui.addButton("gameObj")
+        .setPosition(0,buttonH)
+        .setSize(buttonW, buttonH)
+        .activateBy(ControlP5.PRESSED);
+    colourRadio = gui.addRadioButton("colour")
+                .setPosition(0,buttonH*2+10)
+                .setSize(buttonW, buttonH)
+                .setColorForeground(color(120))
+                .setColorActive(color(200))
+                .setColorLabel(color(102))
+                .setItemsPerRow(1)
+                .setSpacingColumn(0)
+                .addItem("black",0)
+                .addItem("red",color(255,0,0))
+                .addItem("blue",color(0,0,255))
+                .addItem("green",color(0,255,0));
+    colourRadio.getItem("black").setState(true); //default
+    modeRadio = gui.addRadioButton("mode")
+                .setPosition(0,buttonH*6+20)
+                .setSize(buttonW, buttonH)
+                .setColorForeground(color(120))
+                .setColorActive(color(200))
+                .setColorLabel(color(102))
+                .setItemsPerRow(1)
+                .setSpacingColumn(0)
+                .addItem("draw",1)
+                .addItem("erase",2)
+                .addItem("select",3)
+                .addItem("box select",4);
+    modeRadio.getItem("draw").setState(true); //default
 
     tablet = new Tablet(this);
     bg = color(255);
@@ -50,6 +91,7 @@ void setup() {
     penMode = Mode.DRAW;
     translating = false;
     //
+    entities = new ArrayList<Entity>();
     background(bg);
 }
 
@@ -63,6 +105,13 @@ void draw() {
 
     penSpeed = abs(mouseX-pmouseX) + abs(mouseY-pmouseY);
     tablet.saveState();
+
+}
+
+void keyPressed(){
+    if (player!=null){
+        player.keyPressed();
+    }
 }
 
 
@@ -76,13 +125,25 @@ public void controlEvent (ControlEvent e){
         }
     }
 
+    //create Entity out of current selection 
+    else if (e.isFrom(objBtn)){
+        if (selectedStrokes.getSize() != 0){
+            player = new Player(0, selectedStrokes);
+            entities.add(player);
+            deselectStrokes();
+            reDraw();
+        }
+    }
+
+    //CREATE GAME OBJ
+
     //MODES
     else if (e.isFrom(modeRadio)){
         switch ((int)e.getValue()){
 
             //DRAW
             case 1:
-                clearSelection();
+                deselectStrokes();
                 reDraw();
                 penMode = Mode.DRAW;
                 break;
@@ -127,44 +188,6 @@ public void controlEvent (ControlEvent e){
             reDraw();
         }
     }
-}
-
-void setupP5(){
-        gui = new ControlP5(this);
-    undoBtn = gui.addButton("undo")
-        .setPosition(0,0)
-        .setSize(buttonW, buttonH)
-        .activateBy(ControlP5.PRESSED);
-    colourRadio = gui.addRadioButton("colour")
-                .setPosition(0,buttonH*2+10)
-                .setSize(buttonW, buttonH)
-                .setColorForeground(color(120))
-                .setColorActive(color(200))
-                .setColorLabel(color(102))
-                .setItemsPerRow(1)
-                .setSpacingColumn(0)
-                .addItem("black",0)
-                .addItem("red",color(255,0,0))
-                .addItem("blue",color(0,0,255))
-                .addItem("green",color(0,255,0));
-    colourRadio.getItem("black").setState(true); //default
-    modeRadio = gui.addRadioButton("mode")
-                .setPosition(0,buttonH*6+20)
-                .setSize(buttonW, buttonH)
-                .setColorForeground(color(120))
-                .setColorActive(color(200))
-                .setColorLabel(color(102))
-                .setItemsPerRow(1)
-                .setSpacingColumn(0)
-                .addItem("draw",1)
-                .addItem("erase",2)
-                .addItem("select",3)
-                .addItem("box select",4);
-    modeRadio.getItem("draw").setState(true); //default
-    playerBtn = gui.addButton("undo")
-        .setPosition(0,buttonH*9)
-        .setSize(buttonW, buttonH)
-        .activateBy(ControlP5.PRESSED);
 }
 
 

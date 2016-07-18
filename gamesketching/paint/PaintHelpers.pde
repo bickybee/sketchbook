@@ -1,41 +1,14 @@
+
 // paint helper functions
 
-
-void undoStroke(){
-    allStrokes.remove(allStrokes.size()-1);
-    reDraw();
-}
-
-void drawAllStrokes(){
-    selectedStrokes.drawBounds();
-    for (Stroke selected: selectedStrokes.getMembers()){
-        selected.drawSelected();
-    }
-    for (Stroke stroke: allStrokes){
-        stroke.draw();
-    }
-}
-
-void clearSelection(){
-    for (Stroke s: allStrokes){
-        if (s.isSelected()) s.deselect();
-    }
-    selectedStrokes = new StrokeGroup();
-}
-
-void eraseSelection(){
-    for (Stroke s: selectedStrokes.getMembers()){
-        allStrokes.remove(s); //presumably slow, but it works
-    }
-    selectedStrokes = new StrokeGroup();
-    reDraw();
-}
-
+//redraw everything
 void reDraw(){
     background(bg);
     drawAllStrokes();
+    drawAllEntities();
 }
 
+//draw points corresponding to current pen location
 void draw(ArrayList<Point> points){
     stroke(currentColour);
     //strokeWeight(2);
@@ -51,4 +24,64 @@ void draw(ArrayList<Point> points){
         strokeWeight(points.get(i).weight);
         line(points.get(i).getX(), points.get(i).getY(), points.get(i-1).getX(), points.get(i-1).getY());;
     }
+}
+
+//draw all strokes
+void drawAllStrokes(){
+    selectedStrokes.drawBounds();
+    for (Stroke selected: selectedStrokes.getMembers()){
+        selected.drawSelected();
+    }
+    for (Stroke stroke: allStrokes){
+        stroke.draw();
+    }
+}
+
+void drawAllEntities(){
+    for (Entity g: entities){
+        g.draw();
+    }
+}
+
+//draw a box given opposite corners
+void drawBox(float x1, float y1, float x2, float y2){
+    line(x1,y1,x2,y1);
+    line(x2,y1,x2,y2);
+    line(x2,y2,x1,y2);
+    line(x1,y2,x1,y1);
+}
+
+//undo last drawn stroke
+void undoStroke(){
+    allStrokes.remove(allStrokes.size()-1);
+    reDraw();
+}
+
+//erase current selection
+void eraseSelection(){
+    for (Stroke s: selectedStrokes.getMembers()){
+        allStrokes.remove(s); //presumably slow, but it works
+    }
+    selectedStrokes = new StrokeGroup();
+    reDraw();
+}
+
+//unselect current selection
+void deselectStrokes(){
+    for (Stroke s: allStrokes){
+        if (s.isSelected()) s.deselect();
+    }
+    selectedStrokes = new StrokeGroup();
+}
+
+//for testing
+void drawPolygon(Polygon p){
+    strokeWeight(5);
+    stroke(color(255,0,0));
+    Vector2[] vertices = new Vector2[0];
+    vertices = p.getVertices();
+    for (int i = 1; i < vertices.length; i++){
+        line((float)vertices[i-1].x, (float)vertices[i-1].y, (float)vertices[i].x, (float)vertices[i].y);
+    }
+    line((float)vertices[vertices.length-1].x, (float)vertices[vertices.length-1].y, (float)vertices[0].x, (float)vertices[0].y );
 }

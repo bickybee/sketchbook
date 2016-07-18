@@ -11,6 +11,7 @@ class StrokeGroup{
 	//List<Polygon> polygons;
 	float top, bottom, left, right; //group bounding box
 	boolean selected;
+	int size;
 
 	StrokeGroup(){
 		members = new ArrayList<Stroke>();
@@ -23,18 +24,18 @@ class StrokeGroup{
         bottom = 0;
         left = Float.MAX_VALUE;
         right = 0;
+        size = 0;
 
 	}
 
 	void addMember(Stroke s){
 		members.add(s);
+		size += s.keyPoints.length;
 		Collections.addAll(allKeyPoints, s.keyPoints);
 		if (s.left < left) left = s.left;
         if (s.right > right) right = s.right;
         if (s.top < top) top = s.top;
         if (s.bottom > bottom) bottom = s.bottom;
-
-        //this.decompose();
 	}
 
 	boolean boundsContain(float x, float y){
@@ -51,10 +52,7 @@ class StrokeGroup{
     void drawBounds(){
         stroke(102);
         strokeWeight(2);
-        line(left, top, right, top);
-        line(right, top, right, bottom);
-        line(right, bottom, left, bottom);
-        line(left, bottom, left, top);
+        drawBox(left, top, right, bottom);
     }
 
     void translate(float xOff, float yOff){
@@ -67,12 +65,14 @@ class StrokeGroup{
 		}
     }
 
-    PVector[] convexHull(){
-    	GiftWrap wrapper = new GiftWrap();
-    	Point[] inputPoints = new Point[0];
-    	inputPoints = allKeyPoints.toArray(inputPoints);
-    	return wrapper.generate(inputPoints);
-    }
+     Polygon convexHull(){
+	    GiftWrap wrapper = new GiftWrap();
+	    Vector2[] inputPoints = new Vector2[size];
+	    for (int i = 0; i < size; i++){
+	      inputPoints[i] = allKeyPoints.get(i).getVector2();
+	    }
+	    return new Polygon (wrapper.generate(inputPoints));
+	  }
 
     // void decompose(){
     // 	Vector2[] inputPoints = new Vector2[0];
@@ -89,8 +89,16 @@ class StrokeGroup{
 // GETTERS AND SETTERS
 // --------------------------------------
 
+	public ArrayList<Point> getKeyPoints(){
+		return allKeyPoints;
+	}
+
 	public ArrayList<Stroke> getMembers() {
 		return members;
+	}
+
+	public int getSize(){
+		return size;
 	}
 
 	public void setMembers(ArrayList<Stroke> members) {
