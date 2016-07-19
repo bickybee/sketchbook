@@ -80,7 +80,7 @@ void setup() {
                 .addItem("draw",1)
                 .addItem("erase",2)
                 .addItem("select",3)
-                .addItem("box select",4);
+                .addItem("box select",4)
                 .addItem("play", 5);
     modeRadio.getItem("draw").setState(true); //default
 
@@ -126,7 +126,7 @@ public void controlEvent (ControlEvent e){
     //create Entity out of current selection 
     else if (e.isFrom(objBtn)){
         if (selectedStrokes.getSize() != 0){
-            player = new Player(currentID++, selectedStrokes, 10);
+            player = new Player(currentID++, selectedStrokes, 5);
             entities.add(player);
             for (Stroke s: selectedStrokes.getMembers()){
                 allStrokes.remove(s);

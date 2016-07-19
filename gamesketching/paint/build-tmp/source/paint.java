@@ -53,7 +53,7 @@ int bg;
 StrokeGroup selectedStrokes;
 
 //penStuff
-Mode penMode;
+Mode mode;
 boolean translating;
 boolean penIsDown;
 float penSpeed;
@@ -116,7 +116,8 @@ public void setup() {
                 .addItem("draw",1)
                 .addItem("erase",2)
                 .addItem("select",3)
-                .addItem("box select",4);
+                .addItem("box select",4)
+                .addItem("play", 5);
     modeRadio.getItem("draw").setState(true); //default
 
     //
@@ -128,7 +129,7 @@ public void setup() {
     selectedStrokes = new StrokeGroup();
     //
     penIsDown = false;
-    penMode = Mode.DRAW;
+    mode = Mode.DRAW;
     translating = false;
     //
     entities = new ArrayList<Entity>();
@@ -161,7 +162,7 @@ public void controlEvent (ControlEvent e){
     //create Entity out of current selection 
     else if (e.isFrom(objBtn)){
         if (selectedStrokes.getSize() != 0){
-            player = new Player(currentID++, selectedStrokes, 10);
+            player = new Player(currentID++, selectedStrokes, 5);
             entities.add(player);
             for (Stroke s: selectedStrokes.getMembers()){
                 allStrokes.remove(s);
@@ -181,7 +182,7 @@ public void controlEvent (ControlEvent e){
             case 1:
                 deselectStrokes();
                 reDraw();
-                penMode = Mode.DRAW;
+                mode = Mode.DRAW;
                 break;
 
             //ERASE
@@ -195,17 +196,21 @@ public void controlEvent (ControlEvent e){
                     reDraw();
                 }
                 //otherwise just switch to erase mode
-                else penMode = Mode.ERASE;
+                else mode = Mode.ERASE;
                 break;
 
             //SELECT
             case 3:
-                penMode = Mode.SELECT;
+                mode = Mode.SELECT;
                 break;
 
             //BOXSELECT
             case 4:
-                penMode = Mode.BOXSELECT;
+                mode = Mode.BOXSELECT;
+                break;
+
+            case 5:
+                mode = Mode.PLAY;
                 break;
 
             default:
@@ -360,7 +365,7 @@ public void drawPolygon(Polygon p){
 public void penDown(){
 
     //ERASE: remove strokes that intersect pen
-    if (penMode==Mode.ERASE || (tablet.getPenKind()==Tablet.ERASER && penMode==Mode.DRAW)){       
+    if (mode==Mode.ERASE || (tablet.getPenKind()==Tablet.ERASER && mode==Mode.DRAW)){       
         for (Stroke stroke: allStrokes){
             if (stroke.intersects(mouseX, mouseY, pmouseX, pmouseY)){
                 allStrokes.remove(stroke);
@@ -371,7 +376,7 @@ public void penDown(){
     }
 
     //DRAW: create strokes!
-    else if (penMode==Mode.DRAW){
+    else if (mode==Mode.DRAW){
 
         //just pressed: instantiate new stroke
         if (!penIsDown){
@@ -390,7 +395,7 @@ public void penDown(){
 
     //SELECT: select strokes that intersect pen
     //BOX SELECT: create box that will select strokes on penUp
-    else if (penMode==Mode.SELECT||penMode==Mode.BOXSELECT){
+    else if (mode==Mode.SELECT||mode==Mode.BOXSELECT){
         
         //if eraser is put down, erase current selection
         if (tablet.getPenKind()==Tablet.ERASER) eraseSelection();
@@ -408,14 +413,14 @@ public void penDown(){
             penIsDown = true;
             deselectStrokes();
             reDraw();
-            if (penMode==Mode.BOXSELECT){
+            if (mode==Mode.BOXSELECT){
                 sx1 = mouseX;
                 sy1 = mouseY;
             }
         }
 
         //dragging: check for strokes that intersect and select them
-        else if (penMode==Mode.SELECT){
+        else if (mode==Mode.SELECT){
             for (Stroke stroke: allStrokes){
                 if (!stroke.isSelected()&&stroke.intersects(mouseX, mouseY, pmouseX,pmouseY)){
                     stroke.select();
@@ -427,7 +432,7 @@ public void penDown(){
         }
 
         //dragging: create box
-        else if (penMode==Mode.BOXSELECT){
+        else if (mode==Mode.BOXSELECT){
             sx2 = mouseX;
             sy2 = mouseY;
             reDraw();
@@ -441,7 +446,7 @@ public void penDown(){
 public void penUp(){
 
     //DRAW: save finished stroke
-    if (penMode==Mode.DRAW){
+    if (mode==Mode.DRAW){
        Stroke finishedStroke = new Stroke(currentColour, currentStroke);
         allStrokes.add(finishedStroke); //add stroke
         reDraw();
@@ -449,7 +454,7 @@ public void penUp(){
 
     //BOXSELECT: select all strokes whose **BBs** fall within created box
     //(should change this later to be more precise than BBs)
-    if (penMode==Mode.BOXSELECT){
+    if (mode==Mode.BOXSELECT){
         for (Stroke s: allStrokes){
             if (!s.isSelected()&&s.boundsIntersectRect(min(sx1,sx2), min(sy1,sy2), max(sx1,sx2), max(sy1,sy2))){
                 s.select();
@@ -467,7 +472,7 @@ public void penHover(){
 
     //SELECT or TRANSLATE: distinguish between modes by checking if pen is within current selection bounds
     //gets real gross in here, ungross it
-    if (penMode == Mode.SELECT || penMode == Mode.BOXSELECT){
+    if (mode == Mode.SELECT || mode == Mode.BOXSELECT){
         if (selectedStrokes.boundsContain(mouseX, mouseY)){
             cursor(CROSS);
             translating = true;
