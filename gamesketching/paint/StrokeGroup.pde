@@ -74,6 +74,24 @@ class StrokeGroup{
 	    return new Polygon (wrapper.generate(inputPoints));
 	  }
 
+	 StrokeGroup copy(){
+	 	StrokeGroup copy = new StrokeGroup();
+	 	for (Stroke s: members){
+	 		copy.members.add(s);
+	 	}
+	 	for (Point p: allKeyPoints){
+	 		copy.allKeyPoints.add(p);
+	 	}
+	 	copy.selected = selected;
+		copy.top = top;
+        copy.bottom = bottom;
+        copy.left = left;
+        copy.right = right;
+        copy.size = size;
+
+        return copy;
+	 }
+
     // void decompose(){
     // 	Vector2[] inputPoints = new Vector2[0];
     // 	inputPoints = allKeyPoints.toArray(inputPoints);

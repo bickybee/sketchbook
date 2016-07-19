@@ -1,18 +1,18 @@
 class Player extends Entity{
 
-	static final float SPEED = 10;
+	float speed;
 	
-	Player(int i, StrokeGroup sg){
+	Player(int i, StrokeGroup sg, float sp){
 		super(i, sg);
+		speed = sp;
 	}
 
 	void keyPressed(){
-		print("keypressed \n");
 		if (key==CODED){
-			if (keyCode == UP) this.translate(0,-SPEED);
-			else if (keyCode == DOWN) this.translate(0,SPEED);
-			else if (keyCode == LEFT) this.translate(-SPEED,0);
-			else if (keyCode == RIGHT) this.translate(SPEED,0);
+			if (keyCode == UP) this.translate(0,-speed);
+			else if (keyCode == DOWN) this.translate(0,speed);
+			else if (keyCode == LEFT) this.translate(-speed,0);
+			else if (keyCode == RIGHT) this.translate(speed,0);
 			reDraw();
 		}
 	}

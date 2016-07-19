@@ -3,6 +3,8 @@ import processing.data.*;
 import processing.event.*; 
 import processing.opengl.*; 
 
+import de.looksgood.ani.*; 
+import de.looksgood.ani.easing.*; 
 import com.goebl.simplify.*; 
 import codeanticode.tablet.*; 
 import controlP5.*; 
@@ -31,6 +33,9 @@ import java.io.OutputStream;
 import java.io.IOException; 
 
 public class paint extends PApplet {
+
+
+
 
 
 
@@ -72,7 +77,7 @@ RadioButton layerRadio;
 //GAME STUFF!!!!!!!
 ArrayList<Entity> entities;
 Player player;
-//Player player;
+int currentID;
 
 //any initialization goes here
 public void setup() {
@@ -114,6 +119,7 @@ public void setup() {
                 .addItem("box select",4);
     modeRadio.getItem("draw").setState(true); //default
 
+    //
     tablet = new Tablet(this);
     bg = color(255);
     currentColour = color(0,0,0);
@@ -132,8 +138,8 @@ public void setup() {
 //drawing loop
 //basically the tablet-input handler
 public void draw() {
-     
-    if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
+    if (keyPressed && (player!= null)) player.keyPressed();
+    else if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
     else if (!tablet.isLeftDown() && penIsDown) penUp();
     else penHover();
 
@@ -141,13 +147,6 @@ public void draw() {
     tablet.saveState();
 
 }
-
-public void keyPressed(){
-    if (player!=null){
-        player.keyPressed();
-    }
-}
-
 
 //GUI handler
 public void controlEvent (ControlEvent e){
@@ -162,9 +161,12 @@ public void controlEvent (ControlEvent e){
     //create Entity out of current selection 
     else if (e.isFrom(objBtn)){
         if (selectedStrokes.getSize() != 0){
-            player = new Player(0, selectedStrokes);
+            player = new Player(currentID++, selectedStrokes, 10);
             entities.add(player);
-            deselectStrokes();
+            for (Stroke s: selectedStrokes.getMembers()){
+                allStrokes.remove(s);
+            }
+            selectedStrokes = new StrokeGroup();
             reDraw();
         }
     }
@@ -226,30 +228,43 @@ public void controlEvent (ControlEvent e){
 
 
 
-
-
 class Entity{
 
 	StrokeGroup strokes;
+  PGraphics raster;
   Polygon hull;
   int id;
+  float w, h;
+  PVector position;
 
 	Entity(int i, StrokeGroup sg){
     id = i;
-    strokes = sg;
-    hull = sg.convexHull();
+    strokes = sg.copy();
+    hull = strokes.convexHull();
+    position = new PVector(strokes.getLeft(), strokes.getTop());
+    w = strokes.getRight() - strokes.getLeft();
+    h = strokes.getBottom() - strokes.getTop();
+    raster = createGraphics((int)w+4,(int)h+4);
+    setupRaster();
 	}
+
+  public void setupRaster(){
+    for (Stroke s: strokes.getMembers()){
+      s.draw(raster, position, 2f);
+    }
+  }
 
   public void drawHull() {
     drawPolygon(hull);
   }
 
   public void draw(){
-    drawHull();
+    image(raster,position.x, position.y);
   }
 
   public void translate(float dx, float dy){
-      strokes.translate(dx, dy); //hull moves with stroke points!!!!!!
+      position.add(dx,dy);
+      //strokes.translate(dx, dy); //hull moves with stroke points!!!!!!
   }
 
 }
@@ -259,26 +274,26 @@ class Entity{
 //redraw everything
 public void reDraw(){
     background(bg);
-    drawAllStrokes();
     drawAllEntities();
+    drawAllStrokes();
 }
 
 //draw points corresponding to current pen location
 public void draw(ArrayList<Point> points){
     stroke(currentColour);
-    //strokeWeight(2);
-    // noFill();
-    // beginShape();
-    // curveVertex(points.get(0).getX(), points.get(0).getY());
-    // for (int i = 0; i < points.size(); i++){
-    //     curveVertex(points.get(i).getX(), points.get(i).getY());
-    // }
-    // if (points.size()>1) curveVertex(points.get(points.size()-1).getX(), points.get(points.size()-1).getY());
-    // endShape();
-    for (int i = 1; i < points.size(); i++){
-        strokeWeight(points.get(i).weight);
-        line(points.get(i).getX(), points.get(i).getY(), points.get(i-1).getX(), points.get(i-1).getY());;
+    strokeWeight(2);
+    noFill();
+    beginShape();
+    curveVertex(points.get(0).getX(), points.get(0).getY());
+    for (int i = 0; i < points.size(); i++){
+        curveVertex(points.get(i).getX(), points.get(i).getY());
     }
+    if (points.size()>1) curveVertex(points.get(points.size()-1).getX(), points.get(points.size()-1).getY());
+    endShape();
+    // for (int i = 1; i < points.size(); i++){
+    //     strokeWeight(points.get(i).weight);
+    //     line(points.get(i).getX(), points.get(i).getY(), points.get(i-1).getX(), points.get(i-1).getY());;
+    // }
 }
 
 //draw all strokes
@@ -465,19 +480,19 @@ public void penHover(){
 }
 class Player extends Entity{
 
-	static final float SPEED = 10;
+	float speed;
 	
-	Player(int i, StrokeGroup sg){
+	Player(int i, StrokeGroup sg, float sp){
 		super(i, sg);
+		speed = sp;
 	}
 
 	public void keyPressed(){
-		print("keypressed \n");
 		if (key==CODED){
-			if (keyCode == UP) this.translate(0,-SPEED);
-			else if (keyCode == DOWN) this.translate(0,SPEED);
-			else if (keyCode == LEFT) this.translate(-SPEED,0);
-			else if (keyCode == RIGHT) this.translate(SPEED,0);
+			if (keyCode == UP) this.translate(0,-speed);
+			else if (keyCode == DOWN) this.translate(0,speed);
+			else if (keyCode == LEFT) this.translate(-speed,0);
+			else if (keyCode == RIGHT) this.translate(speed,0);
 			reDraw();
 		}
 	}
@@ -491,23 +506,19 @@ class Point{
     
     float weight;
     PVector coords;
-    Vector2 coordsV2;
 
 
     Point(float x, float y){
         coords = new PVector(x, y);
-        coordsV2 = new Vector2((double) x, (double) y);
     }
 
     Point(float x, float y, float w){
         coords = new PVector(x, y);
-        coordsV2 = new Vector2((double) x, (double) y);
         weight = w;
     }
 
     public void translate(float xOff, float yOff){
         coords.add(xOff, yOff, 0);
-        coordsV2.add(xOff, yOff);
     }
     
     public float getX(){
@@ -519,7 +530,7 @@ class Point{
     }
 
     public Vector2 getVector2(){
-        return coordsV2;
+        return new Vector2((double)coords.x, (double)coords.y);
     }
 
     public PVector getCoords(){
@@ -613,27 +624,52 @@ class Stroke{
     //drawing a completed stroke
     public void draw(){
         stroke(colour);
-        //strokeWeight(2);
-        // noFill();
-        // beginShape();
-        // curveVertex(points.get(0).getX(), points.get(0).getY());
-        // for (int i = 0; i < size; i++){
-        //     curveVertex(points[i].getX(), points[i].getY());
-        // }
-        // if (size>1) curveVertex(points.get(size-1).getX(), points.get(size-1).getY());
-        // endShape();
-        
-        stroke(colour);
-        for (int i = 1; i < size; i++){
-            strokeWeight(points[i].weight);
-            line(points[i].getX(), points[i].getY(), points[i-1].getX(), points[i-1].getY());;
+        strokeWeight(2);
+        noFill();
+        beginShape();
+        curveVertex(points[0].getX(), points[0].getY());
+        for (int i = 0; i < size; i++){
+            curveVertex(points[i].getX(), points[i].getY());
         }
+        if (size>1) curveVertex(points[size-1].getX(), points[size-1].getY());
+        endShape();
+
+        // for (int i = 1; i < size; i++){
+        //     strokeWeight(points[i].weight);
+        //     line(points[i].getX(), points[i].getY(), points[i-1].getX(), points[i-1].getY());
+        // }
         //KEYPOINTS
         // stroke(255,0,0);
         // strokeWeight(2);
         // for (int i = 1; i < keyPoints.length; i++){
         //     line(keyPoints[i].getX(), keyPoints[i].getY(), keyPoints[i-1].getX(), keyPoints[i-1].getY());;
         // }
+    }
+
+    //draw stroke onto offscreen PGraphic
+    public void draw(PGraphics pg, PVector position, float padding){
+        pg.beginDraw();
+        pg.stroke(colour);
+        pg.strokeWeight(2);
+        pg.noFill();
+        pg.beginShape();
+        float dx = padding - position.x;
+        float dy = padding - position.y;
+        pg.curveVertex(points[0].getX()+dx, points[0].getY()+dy);
+        for (int i = 0; i < size; i++){
+            pg.curveVertex(points[i].getX()+dx, points[i].getY()+dy);
+        }
+        if (size>1) pg.curveVertex(points[size-1].getX()+dx, points[size-1].getY()+dy);
+        pg.endShape();
+        pg.endDraw();
+
+        // pg.beginDraw();
+        // pg.stroke(colour);
+        // for (int i = 1; i < size; i++){
+        //     pg.strokeWeight(points[i].weight);
+        //     pg.line(points[i].getX()+dx, points[i].getY()+dy, points[i-1].getX()+dx, points[i-1].getY()+dy);
+        // }
+        // pg.endDraw();
     }
 
     //draw a sort of "highlight" to indicate stroke is selected
@@ -907,6 +943,24 @@ class StrokeGroup{
 	    }
 	    return new Polygon (wrapper.generate(inputPoints));
 	  }
+
+	 public StrokeGroup copy(){
+	 	StrokeGroup copy = new StrokeGroup();
+	 	for (Stroke s: members){
+	 		copy.members.add(s);
+	 	}
+	 	for (Point p: allKeyPoints){
+	 		copy.allKeyPoints.add(p);
+	 	}
+	 	copy.selected = selected;
+		copy.top = top;
+        copy.bottom = bottom;
+        copy.left = left;
+        copy.right = right;
+        copy.size = size;
+
+        return copy;
+	 }
 
     // void decompose(){
     // 	Vector2[] inputPoints = new Vector2[0];

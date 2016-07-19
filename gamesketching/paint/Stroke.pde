@@ -81,27 +81,52 @@ class Stroke{
     //drawing a completed stroke
     void draw(){
         stroke(colour);
-        //strokeWeight(2);
-        // noFill();
-        // beginShape();
-        // curveVertex(points.get(0).getX(), points.get(0).getY());
-        // for (int i = 0; i < size; i++){
-        //     curveVertex(points[i].getX(), points[i].getY());
-        // }
-        // if (size>1) curveVertex(points.get(size-1).getX(), points.get(size-1).getY());
-        // endShape();
-        
-        stroke(colour);
-        for (int i = 1; i < size; i++){
-            strokeWeight(points[i].weight);
-            line(points[i].getX(), points[i].getY(), points[i-1].getX(), points[i-1].getY());;
+        strokeWeight(2);
+        noFill();
+        beginShape();
+        curveVertex(points[0].getX(), points[0].getY());
+        for (int i = 0; i < size; i++){
+            curveVertex(points[i].getX(), points[i].getY());
         }
+        if (size>1) curveVertex(points[size-1].getX(), points[size-1].getY());
+        endShape();
+
+        // for (int i = 1; i < size; i++){
+        //     strokeWeight(points[i].weight);
+        //     line(points[i].getX(), points[i].getY(), points[i-1].getX(), points[i-1].getY());
+        // }
         //KEYPOINTS
         // stroke(255,0,0);
         // strokeWeight(2);
         // for (int i = 1; i < keyPoints.length; i++){
         //     line(keyPoints[i].getX(), keyPoints[i].getY(), keyPoints[i-1].getX(), keyPoints[i-1].getY());;
         // }
+    }
+
+    //draw stroke onto offscreen PGraphic
+    void draw(PGraphics pg, PVector position, float padding){
+        pg.beginDraw();
+        pg.stroke(colour);
+        pg.strokeWeight(2);
+        pg.noFill();
+        pg.beginShape();
+        float dx = padding - position.x;
+        float dy = padding - position.y;
+        pg.curveVertex(points[0].getX()+dx, points[0].getY()+dy);
+        for (int i = 0; i < size; i++){
+            pg.curveVertex(points[i].getX()+dx, points[i].getY()+dy);
+        }
+        if (size>1) pg.curveVertex(points[size-1].getX()+dx, points[size-1].getY()+dy);
+        pg.endShape();
+        pg.endDraw();
+
+        // pg.beginDraw();
+        // pg.stroke(colour);
+        // for (int i = 1; i < size; i++){
+        //     pg.strokeWeight(points[i].weight);
+        //     pg.line(points[i].getX()+dx, points[i].getY()+dy, points[i-1].getX()+dx, points[i-1].getY()+dy);
+        // }
+        // pg.endDraw();
     }
 
     //draw a sort of "highlight" to indicate stroke is selected

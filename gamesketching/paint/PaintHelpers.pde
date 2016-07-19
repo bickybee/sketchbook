@@ -4,26 +4,26 @@
 //redraw everything
 void reDraw(){
     background(bg);
-    drawAllStrokes();
     drawAllEntities();
+    drawAllStrokes();
 }
 
 //draw points corresponding to current pen location
 void draw(ArrayList<Point> points){
     stroke(currentColour);
-    //strokeWeight(2);
-    // noFill();
-    // beginShape();
-    // curveVertex(points.get(0).getX(), points.get(0).getY());
-    // for (int i = 0; i < points.size(); i++){
-    //     curveVertex(points.get(i).getX(), points.get(i).getY());
-    // }
-    // if (points.size()>1) curveVertex(points.get(points.size()-1).getX(), points.get(points.size()-1).getY());
-    // endShape();
-    for (int i = 1; i < points.size(); i++){
-        strokeWeight(points.get(i).weight);
-        line(points.get(i).getX(), points.get(i).getY(), points.get(i-1).getX(), points.get(i-1).getY());;
+    strokeWeight(2);
+    noFill();
+    beginShape();
+    curveVertex(points.get(0).getX(), points.get(0).getY());
+    for (int i = 0; i < points.size(); i++){
+        curveVertex(points.get(i).getX(), points.get(i).getY());
     }
+    if (points.size()>1) curveVertex(points.get(points.size()-1).getX(), points.get(points.size()-1).getY());
+    endShape();
+    // for (int i = 1; i < points.size(); i++){
+    //     strokeWeight(points.get(i).weight);
+    //     line(points.get(i).getX(), points.get(i).getY(), points.get(i-1).getX(), points.get(i-1).getY());;
+    // }
 }
 
 //draw all strokes

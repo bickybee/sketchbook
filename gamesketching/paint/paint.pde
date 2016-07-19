@@ -1,3 +1,6 @@
+import de.looksgood.ani.*;
+import de.looksgood.ani.easing.*;
+
 import com.goebl.simplify.*;
 import codeanticode.tablet.*;
 import controlP5.*;
@@ -14,7 +17,7 @@ color bg;
 StrokeGroup selectedStrokes;
 
 //penStuff
-Mode penMode;
+Mode mode;
 boolean translating;
 boolean penIsDown;
 float penSpeed;
@@ -38,7 +41,7 @@ RadioButton layerRadio;
 //GAME STUFF!!!!!!!
 ArrayList<Entity> entities;
 Player player;
-//Player player;
+int currentID;
 
 //any initialization goes here
 void setup() {
@@ -78,8 +81,10 @@ void setup() {
                 .addItem("erase",2)
                 .addItem("select",3)
                 .addItem("box select",4);
+                .addItem("play", 5);
     modeRadio.getItem("draw").setState(true); //default
 
+    //
     tablet = new Tablet(this);
     bg = color(255);
     currentColour = color(0,0,0);
@@ -88,7 +93,7 @@ void setup() {
     selectedStrokes = new StrokeGroup();
     //
     penIsDown = false;
-    penMode = Mode.DRAW;
+    mode = Mode.DRAW;
     translating = false;
     //
     entities = new ArrayList<Entity>();
@@ -98,8 +103,8 @@ void setup() {
 //drawing loop
 //basically the tablet-input handler
 void draw() {
-     
-    if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
+    if (keyPressed && (player!= null)) player.keyPressed();
+    else if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
     else if (!tablet.isLeftDown() && penIsDown) penUp();
     else penHover();
 
@@ -107,13 +112,6 @@ void draw() {
     tablet.saveState();
 
 }
-
-void keyPressed(){
-    if (player!=null){
-        player.keyPressed();
-    }
-}
-
 
 //GUI handler
 public void controlEvent (ControlEvent e){
@@ -128,9 +126,12 @@ public void controlEvent (ControlEvent e){
     //create Entity out of current selection 
     else if (e.isFrom(objBtn)){
         if (selectedStrokes.getSize() != 0){
-            player = new Player(0, selectedStrokes);
+            player = new Player(currentID++, selectedStrokes, 10);
             entities.add(player);
-            deselectStrokes();
+            for (Stroke s: selectedStrokes.getMembers()){
+                allStrokes.remove(s);
+            }
+            selectedStrokes = new StrokeGroup();
             reDraw();
         }
     }
@@ -145,7 +146,7 @@ public void controlEvent (ControlEvent e){
             case 1:
                 deselectStrokes();
                 reDraw();
-                penMode = Mode.DRAW;
+                mode = Mode.DRAW;
                 break;
 
             //ERASE
@@ -159,17 +160,21 @@ public void controlEvent (ControlEvent e){
                     reDraw();
                 }
                 //otherwise just switch to erase mode
-                else penMode = Mode.ERASE;
+                else mode = Mode.ERASE;
                 break;
 
             //SELECT
             case 3:
-                penMode = Mode.SELECT;
+                mode = Mode.SELECT;
                 break;
 
             //BOXSELECT
             case 4:
-                penMode = Mode.BOXSELECT;
+                mode = Mode.BOXSELECT;
+                break;
+
+            case 5:
+                mode = Mode.PLAY;
                 break;
 
             default:
@@ -189,5 +194,3 @@ public void controlEvent (ControlEvent e){
         }
     }
 }
-
-
