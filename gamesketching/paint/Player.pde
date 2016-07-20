@@ -7,14 +7,12 @@ class Player extends Entity{
 		speed = sp;
 	}
 
-	void keyPressed(){
-		if (key==CODED){
-			if (keyCode == UP) this.translate(0,-speed);
-			else if (keyCode == DOWN) this.translate(0,speed);
-			else if (keyCode == LEFT) this.translate(-speed,0);
-			else if (keyCode == RIGHT) this.translate(speed,0);
-			reDraw();
-		}
+	void keyHandler(boolean up, boolean down, boolean left, boolean right){
+		if (up) this.translate(0,-speed);
+		else if (down) this.translate(0,speed);
+		else if (left) this.translate(-speed,0);
+		else if (right) this.translate(speed,0);
 	}
+
 
 }

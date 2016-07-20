@@ -1,6 +1,3 @@
-import de.looksgood.ani.*;
-import de.looksgood.ani.easing.*;
-
 import com.goebl.simplify.*;
 import codeanticode.tablet.*;
 import controlP5.*;
@@ -42,6 +39,7 @@ RadioButton layerRadio;
 ArrayList<Entity> entities;
 Player player;
 int currentID;
+boolean up, down, left, right;
 
 //any initialization goes here
 void setup() {
@@ -97,20 +95,39 @@ void setup() {
     translating = false;
     //
     entities = new ArrayList<Entity>();
+    up = false;
+    down = false;
+    left = false;
+    right = false;
     background(bg);
 }
 
 //drawing loop
-//basically the tablet-input handler
 void draw() {
-    if (keyPressed && (player!= null)) player.keyPressed();
-    else if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
+    if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
     else if (!tablet.isLeftDown() && penIsDown) penUp();
     else penHover();
 
     penSpeed = abs(mouseX-pmouseX) + abs(mouseY-pmouseY);
     tablet.saveState();
+    reDraw();
 
+}
+
+void keyPressed(){
+    if (keyCode==UP) up = true;
+    if (keyCode==DOWN) down = true;
+    if (keyCode==LEFT) left = true;
+    if (keyCode==RIGHT) right = true;
+    player.keyHandler(up,down,left,right);
+}
+
+void keyReleased(){
+    if (keyCode==UP) up = false;
+    if (keyCode==DOWN) down = false;
+    if (keyCode==LEFT) left = false;
+    if (keyCode==RIGHT) right = false;
+     player.keyHandler(up,down,left,right);
 }
 
 //GUI handler
