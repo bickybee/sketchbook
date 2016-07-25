@@ -1,7 +1,5 @@
-import org.dyn4j.*;
-import org.dyn4j.geometry.*;
-import org.dyn4j.geometry.decompose.*;
 import java.util.*;
+import fisica.*;
 
 class StrokeGroup{
 
@@ -11,7 +9,7 @@ class StrokeGroup{
 	//List<Polygon> polygons;
 	float top, bottom, left, right; //group bounding box
 	boolean selected;
-	int size;
+	int keyPointsSize, size;
 
 	StrokeGroup(){
 		members = new ArrayList<Stroke>();
@@ -24,13 +22,15 @@ class StrokeGroup{
         bottom = 0;
         left = Float.MAX_VALUE;
         right = 0;
+        keyPointsSize = 0;
         size = 0;
 
 	}
 
 	void addMember(Stroke s){
 		members.add(s);
-		size += s.keyPoints.length;
+		size++;
+		keyPointsSize += s.keyPoints.length;
 		Collections.addAll(allKeyPoints, s.keyPoints);
 		if (s.left < left) left = s.left;
         if (s.right > right) right = s.right;
@@ -65,15 +65,6 @@ class StrokeGroup{
 		}
     }
 
-     Polygon convexHull(){
-	    GiftWrap wrapper = new GiftWrap();
-	    Vector2[] inputPoints = new Vector2[size];
-	    for (int i = 0; i < size; i++){
-	      inputPoints[i] = allKeyPoints.get(i).getVector2();
-	    }
-	    return new Polygon (wrapper.generate(inputPoints));
-	  }
-
 	 StrokeGroup copy(){
 	 	StrokeGroup copy = new StrokeGroup();
 	 	for (Stroke s: members){
@@ -87,6 +78,7 @@ class StrokeGroup{
         copy.bottom = bottom;
         copy.left = left;
         copy.right = right;
+        copy.keyPointsSize = keyPointsSize;
         copy.size = size;
 
         return copy;
@@ -117,6 +109,10 @@ class StrokeGroup{
 
 	public int getSize(){
 		return size;
+	}
+
+	public int getKeyPointsSize(){
+		return keyPointsSize;
 	}
 
 	public void setMembers(ArrayList<Stroke> members) {

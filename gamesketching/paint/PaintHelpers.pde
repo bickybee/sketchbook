@@ -4,6 +4,7 @@
 //redraw everything
 void reDraw(){
     background(bg);
+    world.draw(this);
     drawAllEntities();
     drawAllStrokes();
 }

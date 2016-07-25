@@ -3,25 +3,20 @@ import processing.data.*;
 import processing.event.*; 
 import processing.opengl.*; 
 
-import de.looksgood.ani.*; 
-import de.looksgood.ani.easing.*; 
 import com.goebl.simplify.*; 
 import codeanticode.tablet.*; 
 import controlP5.*; 
 import java.awt.geom.*; 
-import org.dyn4j.*; 
-import org.dyn4j.geometry.*; 
-import org.dyn4j.*; 
-import org.dyn4j.geometry.hull.*; 
+import fisica.*; 
+import fisica.*; 
+import java.util.List; 
 import org.dyn4j.*; 
 import org.dyn4j.geometry.*; 
 import org.dyn4j.geometry.decompose.*; 
 import java.awt.geom.*; 
 import java.util.Arrays; 
-import org.dyn4j.*; 
-import org.dyn4j.geometry.*; 
-import org.dyn4j.geometry.decompose.*; 
 import java.util.*; 
+import fisica.*; 
 
 import java.util.HashMap; 
 import java.util.ArrayList; 
@@ -33,9 +28,6 @@ import java.io.OutputStream;
 import java.io.IOException; 
 
 public class paint extends PApplet {
-
-
-
 
 
 
@@ -70,6 +62,7 @@ int buttonW = 60;
 int buttonH = 40;
 Button undoBtn;
 Button objBtn;
+Button playBtn;
 RadioButton modeRadio;
 RadioButton colourRadio;
 RadioButton layerRadio;
@@ -78,6 +71,7 @@ RadioButton layerRadio;
 ArrayList<Entity> entities;
 Player player;
 int currentID;
+FWorld world;
 
 //any initialization goes here
 public void setup() {
@@ -133,19 +127,33 @@ public void setup() {
     translating = false;
     //
     entities = new ArrayList<Entity>();
+    Fisica.init(this);
+    world = new FWorld();
+    world.setGravity(0, 800);
+    world.setEdges();
     background(bg);
 }
 
 //drawing loop
 //basically the tablet-input handler
 public void draw() {
-    if (keyPressed && (player!= null)) player.keyPressed();
-    else if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
-    else if (!tablet.isLeftDown() && penIsDown) penUp();
-    else penHover();
 
-    penSpeed = abs(mouseX-pmouseX) + abs(mouseY-pmouseY);
-    tablet.saveState();
+    if (mode == Mode.PLAY){
+        world.step();
+        for (Entity e: entities) e.update();
+        reDraw();
+    }
+    else {
+
+        if (keyPressed && (player!= null)) player.keyPressed();
+        else if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
+        else if (!tablet.isLeftDown() && penIsDown) penUp();
+        else if ((pmouseX!=mouseX)&&(pmouseY!=mouseY))penHover();
+
+        penSpeed = abs(mouseX-pmouseX) + abs(mouseY-pmouseY);
+        tablet.saveState();
+
+    }
 
 }
 
@@ -162,12 +170,10 @@ public void controlEvent (ControlEvent e){
     //create Entity out of current selection 
     else if (e.isFrom(objBtn)){
         if (selectedStrokes.getSize() != 0){
-            player = new Player(currentID++, selectedStrokes, 5);
+            player = new Player(currentID++, selectedStrokes, 5); //create player
+            world.add(player.getHull()); //add the physical body
             entities.add(player);
-            for (Stroke s: selectedStrokes.getMembers()){
-                allStrokes.remove(s);
-            }
-            selectedStrokes = new StrokeGroup();
+            deselectStrokes();
             reDraw();
         }
     }
@@ -231,36 +237,49 @@ public void controlEvent (ControlEvent e){
     }
 }
 
+abstract class Component {
+	//abstract void update();
+}
 
 
 class Entity{
 
+  static final float RASTER_PADDING = 2f;
+
 	StrokeGroup strokes;
   PGraphics raster;
-  Polygon hull;
+  FPoly hull;
   int id;
   float w, h;
   PVector position;
 
 	Entity(int i, StrokeGroup sg){
     id = i;
-    strokes = sg.copy();
-    hull = strokes.convexHull();
+    strokes = sg;
+    setupHull();
     position = new PVector(strokes.getLeft(), strokes.getTop());
     w = strokes.getRight() - strokes.getLeft();
     h = strokes.getBottom() - strokes.getTop();
-    raster = createGraphics((int)w+4,(int)h+4);
+    raster = createGraphics((int)(w+RASTER_PADDING/2),(int)(h+RASTER_PADDING/2));
     setupRaster();
 	}
 
+  public void update(){
+    position.x = hull.getX();
+    position.y = hull.getY();
+  }
+
   public void setupRaster(){
     for (Stroke s: strokes.getMembers()){
-      s.draw(raster, position, 2f);
+      s.draw(raster, position, RASTER_PADDING);
     }
   }
 
-  public void drawHull() {
-    drawPolygon(hull);
+  public void setupHull(){
+    GiftWrap wrapper = new GiftWrap();
+    Point[] input = strokes.getKeyPoints().toArray(new Point[strokes.getKeyPointsSize()]);
+    hull = wrapper.generate(input);
+    hull.setRotatable(false);
   }
 
   public void draw(){
@@ -272,6 +291,127 @@ class Entity{
       //strokes.translate(dx, dy); //hull moves with stroke points!!!!!!
   }
 
+  public FPoly getHull(){
+    return hull;
+  }
+
+}
+/*
+ * Copyright (c) 2010-2016 William Bittle  http://www.dyn4j.org/
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without modification, are permitted 
+ * provided that the following conditions are met:
+ * 
+ *   * Redistributions of source code must retain the above copyright notice, this list of conditions 
+ *     and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above copyright notice, this list of conditions 
+ *     and the following disclaimer in the documentation and/or other materials provided with the 
+ *     distribution.
+ *   * Neither the name of dyn4j nor the names of its contributors may be used to endorse or 
+ *     promote products derived from this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR 
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND 
+ * FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR 
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER 
+ * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT 
+ * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+class GiftWrap{
+	/* (non-Javadoc)
+	 * @see org.dyn4j.geometry.hull.HullGenerator#generate(org.dyn4j.geometry.Point[])
+	 */
+
+	public FPoly generate(Point[] points) {
+		// check for null array
+		if (points == null) throw new NullPointerException("null points");
+		
+		// get the size
+		int size = points.length;
+		Point[] hullPoints = new Point[size];
+		// check the size
+		if (size <= 2){
+			for (int i = 0; i < size; i ++){
+				hullPoints[i] = new Point(points[i].getX(), points[i].getY());
+			}
+		}
+		
+		// find the left most point
+		double x = Double.MAX_VALUE;
+		Point leftMost = null;
+		for (int i = 0; i < size; i++) {
+			Point p = points[i];
+			// check for null points
+			if (p == null) throw new NullPointerException("null point");
+			// check the x cooridate
+			if (p.getX() < x) {
+				x = p.getX();
+				leftMost = p;
+			}
+		}
+		
+		// initialize the hull size to the worst case size
+		List<Point> hull = new ArrayList<Point>(size);
+		do {
+			// add the left most point
+			hull.add(leftMost);
+			// check all the points to see if anything is more left than the next point
+			Point maxLeft = points[0];
+			// check if the first point in the array is the leftMost point
+			// if so, then we need to choose another point so that the location
+			// check performs correctly
+			if (maxLeft == leftMost) maxLeft = points[1];
+			// loop over the points to find a more left point than the current
+			for (int j = 0; j < size; j++) {
+				Point t = points[j];
+				// don't worry about the points that create the line we are inspecting
+				// since we know that they are already the left most
+				if (t == maxLeft) continue;
+				if (t == leftMost) continue;
+				// check the point relative to the current line
+				if (getLocation(t, leftMost, maxLeft) < 0.0f) {
+					// this point is further left than the current point
+					maxLeft = t;
+				}
+			}
+			// set the new leftMost point
+			leftMost = maxLeft;
+			// loop until we repeat the first leftMost point
+		} while (leftMost != hull.get(0));
+		
+		// copy the list into FPOLY
+		FPoly poly = new FPoly();
+		for (Point p:hull){
+			poly.vertex(p.getX(), p.getY());
+		}
+		poly.setPosition(0,0);
+		
+		// return the poly
+		return poly;
+	}
+
+	public double getLocation(Point point, Point linePoint1, Point linePoint2) {
+		return (linePoint2.getX() - linePoint1.getX()) * (point.getY() - linePoint1.getY()) -
+			  (point.getX() - linePoint1.getX()) * (linePoint2.getY() - linePoint1.getY());
+	}
+}
+class MotionComponent extends Component {
+	float velocity;
+	float acceleration;
+	MotionComponent(){
+		velocity = 0f;
+		acceleration = 0f;
+	}
+
+	public void update(){
+		//bloop
+	}
 }
 
 // paint helper functions
@@ -279,6 +419,7 @@ class Entity{
 //redraw everything
 public void reDraw(){
     background(bg);
+    world.draw(this);
     drawAllEntities();
     drawAllStrokes();
 }
@@ -876,8 +1017,6 @@ class Stroke{
 
 
 
-
-
 class StrokeGroup{
 
 	ArrayList<Stroke> members;
@@ -886,7 +1025,7 @@ class StrokeGroup{
 	//List<Polygon> polygons;
 	float top, bottom, left, right; //group bounding box
 	boolean selected;
-	int size;
+	int keyPointsSize, size;
 
 	StrokeGroup(){
 		members = new ArrayList<Stroke>();
@@ -899,13 +1038,15 @@ class StrokeGroup{
         bottom = 0;
         left = Float.MAX_VALUE;
         right = 0;
+        keyPointsSize = 0;
         size = 0;
 
 	}
 
 	public void addMember(Stroke s){
 		members.add(s);
-		size += s.keyPoints.length;
+		size++;
+		keyPointsSize += s.keyPoints.length;
 		Collections.addAll(allKeyPoints, s.keyPoints);
 		if (s.left < left) left = s.left;
         if (s.right > right) right = s.right;
@@ -940,15 +1081,6 @@ class StrokeGroup{
 		}
     }
 
-     public Polygon convexHull(){
-	    GiftWrap wrapper = new GiftWrap();
-	    Vector2[] inputPoints = new Vector2[size];
-	    for (int i = 0; i < size; i++){
-	      inputPoints[i] = allKeyPoints.get(i).getVector2();
-	    }
-	    return new Polygon (wrapper.generate(inputPoints));
-	  }
-
 	 public StrokeGroup copy(){
 	 	StrokeGroup copy = new StrokeGroup();
 	 	for (Stroke s: members){
@@ -962,6 +1094,7 @@ class StrokeGroup{
         copy.bottom = bottom;
         copy.left = left;
         copy.right = right;
+        copy.keyPointsSize = keyPointsSize;
         copy.size = size;
 
         return copy;
@@ -992,6 +1125,10 @@ class StrokeGroup{
 
 	public int getSize(){
 		return size;
+	}
+
+	public int getKeyPointsSize(){
+		return keyPointsSize;
 	}
 
 	public void setMembers(ArrayList<Stroke> members) {

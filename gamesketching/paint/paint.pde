@@ -1,12 +1,9 @@
-import de.looksgood.ani.*;
-import de.looksgood.ani.easing.*;
-
 import com.goebl.simplify.*;
 import codeanticode.tablet.*;
 import controlP5.*;
 import java.awt.geom.*;
-import org.dyn4j.*;
-import org.dyn4j.geometry.*;
+import fisica.*;
+
 
 //canvas stuff
 Tablet tablet;
@@ -34,6 +31,7 @@ int buttonW = 60;
 int buttonH = 40;
 Button undoBtn;
 Button objBtn;
+Button playBtn;
 RadioButton modeRadio;
 RadioButton colourRadio;
 RadioButton layerRadio;
@@ -42,6 +40,7 @@ RadioButton layerRadio;
 ArrayList<Entity> entities;
 Player player;
 int currentID;
+FWorld world;
 
 //any initialization goes here
 void setup() {
@@ -97,19 +96,33 @@ void setup() {
     translating = false;
     //
     entities = new ArrayList<Entity>();
+    Fisica.init(this);
+    world = new FWorld();
+    world.setGravity(0, 800);
+    world.setEdges();
     background(bg);
 }
 
 //drawing loop
 //basically the tablet-input handler
 void draw() {
-    if (keyPressed && (player!= null)) player.keyPressed();
-    else if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
-    else if (!tablet.isLeftDown() && penIsDown) penUp();
-    else penHover();
 
-    penSpeed = abs(mouseX-pmouseX) + abs(mouseY-pmouseY);
-    tablet.saveState();
+    if (mode == Mode.PLAY){
+        world.step();
+        for (Entity e: entities) e.update();
+        reDraw();
+    }
+    else {
+
+        if (keyPressed && (player!= null)) player.keyPressed();
+        else if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
+        else if (!tablet.isLeftDown() && penIsDown) penUp();
+        else if ((pmouseX!=mouseX)&&(pmouseY!=mouseY))penHover();
+
+        penSpeed = abs(mouseX-pmouseX) + abs(mouseY-pmouseY);
+        tablet.saveState();
+
+    }
 
 }
 
@@ -126,12 +139,10 @@ public void controlEvent (ControlEvent e){
     //create Entity out of current selection 
     else if (e.isFrom(objBtn)){
         if (selectedStrokes.getSize() != 0){
-            player = new Player(currentID++, selectedStrokes, 5);
+            player = new Player(currentID++, selectedStrokes, 5); //create player
+            world.add(player.getHull()); //add the physical body
             entities.add(player);
-            for (Stroke s: selectedStrokes.getMembers()){
-                allStrokes.remove(s);
-            }
-            selectedStrokes = new StrokeGroup();
+            deselectStrokes();
             reDraw();
         }
     }
