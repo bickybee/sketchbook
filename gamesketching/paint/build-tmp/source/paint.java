@@ -63,29 +63,35 @@ int buttonH = 40;
 Button undoBtn;
 Button objBtn;
 Button playBtn;
-RadioButton modeRadio;
+RadioButton penRadio;
 RadioButton colourRadio;
-RadioButton layerRadio;
+RadioButton modeRadio;
+boolean playing;
 
 //GAME STUFF!!!!!!!
 ArrayList<Entity> entities;
-Player player;
 int currentID;
+
 FWorld world;
+boolean up, down, left, right;
+
 
 //any initialization goes here
 public void setup() {
      //fullscreen on second screen (tablet)
     //controlP5 setup
     gui = new ControlP5(this);
+
     undoBtn = gui.addButton("undo")
         .setPosition(0,0)
         .setSize(buttonW, buttonH)
         .activateBy(ControlP5.PRESSED);
+
     objBtn = gui.addButton("gameObj")
         .setPosition(0,buttonH)
         .setSize(buttonW, buttonH)
         .activateBy(ControlP5.PRESSED);
+
     colourRadio = gui.addRadioButton("colour")
                 .setPosition(0,buttonH*2+10)
                 .setSize(buttonW, buttonH)
@@ -99,7 +105,8 @@ public void setup() {
                 .addItem("blue",color(0,0,255))
                 .addItem("green",color(0,255,0));
     colourRadio.getItem("black").setState(true); //default
-    modeRadio = gui.addRadioButton("mode")
+
+    penRadio = gui.addRadioButton("pens")
                 .setPosition(0,buttonH*6+20)
                 .setSize(buttonW, buttonH)
                 .setColorForeground(color(120))
@@ -107,12 +114,23 @@ public void setup() {
                 .setColorLabel(color(102))
                 .setItemsPerRow(1)
                 .setSpacingColumn(0)
-                .addItem("draw",1)
-                .addItem("erase",2)
+                .addItem("pen",1)
+                .addItem("eraser",2)
                 .addItem("select",3)
-                .addItem("box select",4)
-                .addItem("play", 5);
-    modeRadio.getItem("draw").setState(true); //default
+                .addItem("box select",4);
+    penRadio.getItem("pen").setState(true); //default
+
+    modeRadio = gui.addRadioButton("mode")
+                .setPosition(0,buttonH*10+30)
+                .setSize(buttonW, buttonH)
+                .setColorForeground(color(120))
+                .setColorActive(color(200))
+                .setColorLabel(color(102))
+                .setItemsPerRow(1)
+                .setSpacingColumn(0)
+                .addItem("draw",1)
+                .addItem("play",2);
+    modeRadio.getItem("draw").setState(true);
 
     //
     tablet = new Tablet(this);
@@ -123,30 +141,32 @@ public void setup() {
     selectedStrokes = new StrokeGroup();
     //
     penIsDown = false;
-    mode = Mode.DRAW;
+    mode = Mode.PEN;
     translating = false;
     //
     entities = new ArrayList<Entity>();
+
     Fisica.init(this);
     world = new FWorld();
     world.setGravity(0, 800);
     world.setEdges();
+
+    playing = false;
+
     background(bg);
 }
 
 //drawing loop
-//basically the tablet-input handler
 public void draw() {
 
-    if (mode == Mode.PLAY){
+    if (playing){
         world.step();
         for (Entity e: entities) e.update();
         reDraw();
     }
     else {
 
-        if (keyPressed && (player!= null)) player.keyPressed();
-        else if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
+        if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
         else if (!tablet.isLeftDown() && penIsDown) penUp();
         else if ((pmouseX!=mouseX)&&(pmouseY!=mouseY))penHover();
 
@@ -156,6 +176,7 @@ public void draw() {
     }
 
 }
+
 
 //GUI handler
 public void controlEvent (ControlEvent e){
@@ -170,25 +191,36 @@ public void controlEvent (ControlEvent e){
     //create Entity out of current selection 
     else if (e.isFrom(objBtn)){
         if (selectedStrokes.getSize() != 0){
-            player = new Player(currentID++, selectedStrokes, 5); //create player
-            world.add(player.getHull()); //add the physical body
-            entities.add(player);
+            entities.add(new Entity(currentID++, selectedStrokes, world)); //create entity
             deselectStrokes();
             reDraw();
+        }
+    }
+
+    else if (e.isFrom(modeRadio)){
+        if ((int)e.getValue()==1){
+            playing = false;
+            reDraw();
+           // penRadio.activateAll();
+        }
+        else if ((int)e.getValue()==2){
+            playing = true;
+            reDraw();
+            //penRadio.deactivateAll();
         }
     }
 
     //CREATE GAME OBJ
 
     //MODES
-    else if (e.isFrom(modeRadio)){
+    else if (e.isFrom(penRadio)){
         switch ((int)e.getValue()){
 
             //DRAW
             case 1:
                 deselectStrokes();
                 reDraw();
-                mode = Mode.DRAW;
+                mode = Mode.PEN;
                 break;
 
             //ERASE
@@ -196,8 +228,8 @@ public void controlEvent (ControlEvent e){
                 reDraw();
                 //if something is selected, erase that, while remaining in select mode
                 if (selectedStrokes.getMembers().size()!=0){
-                    modeRadio.getItem("erase").setState(false);
-                    modeRadio.getItem("select").setState(true);
+                    penRadio.getItem("erase").setState(false);
+                    penRadio.getItem("select").setState(true);
                     eraseSelection();
                     reDraw();
                 }
@@ -213,10 +245,6 @@ public void controlEvent (ControlEvent e){
             //BOXSELECT
             case 4:
                 mode = Mode.BOXSELECT;
-                break;
-
-            case 5:
-                mode = Mode.PLAY;
                 break;
 
             default:
@@ -252,21 +280,24 @@ class Entity{
   int id;
   float w, h;
   PVector position;
+  PVector initialPosition;
 
-	Entity(int i, StrokeGroup sg){
+	Entity(int i, StrokeGroup sg, FWorld world){
     id = i;
+    sg.belongsToEntity();
     strokes = sg;
-    setupHull();
     position = new PVector(strokes.getLeft(), strokes.getTop());
     w = strokes.getRight() - strokes.getLeft();
     h = strokes.getBottom() - strokes.getTop();
     raster = createGraphics((int)(w+RASTER_PADDING/2),(int)(h+RASTER_PADDING/2));
     setupRaster();
+    setupHull();
+    world.add(hull);
 	}
 
   public void update(){
-    position.x = hull.getX();
-    position.y = hull.getY();
+    position.x = hull.getX()+initialPosition.x;
+    position.y = hull.getY()+initialPosition.y;
   }
 
   public void setupRaster(){
@@ -279,7 +310,9 @@ class Entity{
     GiftWrap wrapper = new GiftWrap();
     Point[] input = strokes.getKeyPoints().toArray(new Point[strokes.getKeyPointsSize()]);
     hull = wrapper.generate(input);
+    hull.setPosition(0,0);
     hull.setRotatable(false);
+    initialPosition = new PVector(position.x, position.y);
   }
 
   public void draw(){
@@ -390,7 +423,6 @@ class GiftWrap{
 		for (Point p:hull){
 			poly.vertex(p.getX(), p.getY());
 		}
-		poly.setPosition(0,0);
 		
 		// return the poly
 		return poly;
@@ -419,9 +451,8 @@ class MotionComponent extends Component {
 //redraw everything
 public void reDraw(){
     background(bg);
-    world.draw(this);
-    drawAllEntities();
-    drawAllStrokes();
+    if (playing) drawAllEntities();
+    else drawAllStrokes();
 }
 
 //draw points corresponding to current pen location
@@ -444,7 +475,7 @@ public void draw(ArrayList<Point> points){
 
 //draw all strokes
 public void drawAllStrokes(){
-    selectedStrokes.drawBounds();
+    selectedStrokes.drawBounds(color(102));
     for (Stroke selected: selectedStrokes.getMembers()){
         selected.drawSelected();
     }
@@ -506,7 +537,7 @@ public void drawPolygon(Polygon p){
 public void penDown(){
 
     //ERASE: remove strokes that intersect pen
-    if (mode==Mode.ERASE || (tablet.getPenKind()==Tablet.ERASER && mode==Mode.DRAW)){       
+    if (mode==Mode.ERASE || (tablet.getPenKind()==Tablet.ERASER && mode==Mode.PEN)){       
         for (Stroke stroke: allStrokes){
             if (stroke.intersects(mouseX, mouseY, pmouseX, pmouseY)){
                 allStrokes.remove(stroke);
@@ -517,7 +548,7 @@ public void penDown(){
     }
 
     //DRAW: create strokes!
-    else if (mode==Mode.DRAW){
+    else if (mode==Mode.PEN){
 
         //just pressed: instantiate new stroke
         if (!penIsDown){
@@ -587,7 +618,7 @@ public void penDown(){
 public void penUp(){
 
     //DRAW: save finished stroke
-    if (mode==Mode.DRAW){
+    if (mode==Mode.PEN){
        Stroke finishedStroke = new Stroke(currentColour, currentStroke);
         allStrokes.add(finishedStroke); //add stroke
         reDraw();
@@ -623,26 +654,6 @@ public void penHover(){
             translating = false;
         } 
     }
-}
-class Player extends Entity{
-
-	float speed;
-	
-	Player(int i, StrokeGroup sg, float sp){
-		super(i, sg);
-		speed = sp;
-	}
-
-	public void keyPressed(){
-		if (key==CODED){
-			if (keyCode == UP) this.translate(0,-speed);
-			else if (keyCode == DOWN) this.translate(0,speed);
-			else if (keyCode == LEFT) this.translate(-speed,0);
-			else if (keyCode == RIGHT) this.translate(speed,0);
-			reDraw();
-		}
-	}
-
 }
 
 
@@ -1025,6 +1036,7 @@ class StrokeGroup{
 	//List<Polygon> polygons;
 	float top, bottom, left, right; //group bounding box
 	boolean selected;
+	boolean belongsToEntity;
 	int keyPointsSize, size;
 
 	StrokeGroup(){
@@ -1034,6 +1046,7 @@ class StrokeGroup{
 		//polygons = new ArrayList<Polygon>();
 
 		selected = true;
+		belongsToEntity = false;
 		top = Float.MAX_VALUE;
         bottom = 0;
         left = Float.MAX_VALUE;
@@ -1063,10 +1076,11 @@ class StrokeGroup{
     	for (Stroke s: members){
     		s.draw();
     	}
+    	if (belongsToEntity) drawBounds(color(50,50,255));
     }
 
-    public void drawBounds(){
-        stroke(102);
+    public void drawBounds(int c){
+        stroke(c);
         strokeWeight(2);
         drawBox(left, top, right, bottom);
     }
@@ -1173,6 +1187,14 @@ class StrokeGroup{
 
 	public void setSelected(boolean selected) {
 		this.selected = selected;
+	}
+
+	public void belongsToEntity(){
+		belongsToEntity = true;
+	}
+
+	public void removeFromEntity(){
+		belongsToEntity = false;
 	}
 
 }

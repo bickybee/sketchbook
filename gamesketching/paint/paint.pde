@@ -32,13 +32,13 @@ int buttonH = 40;
 Button undoBtn;
 Button objBtn;
 Button playBtn;
-RadioButton modeRadio;
+RadioButton penRadio;
 RadioButton colourRadio;
-RadioButton layerRadio;
+RadioButton modeRadio;
+boolean playing;
 
 //GAME STUFF!!!!!!!
 ArrayList<Entity> entities;
-Player player;
 int currentID;
 
 FWorld world;
@@ -50,14 +50,17 @@ void setup() {
     fullScreen(2); //fullscreen on second screen (tablet)
     //controlP5 setup
     gui = new ControlP5(this);
+
     undoBtn = gui.addButton("undo")
         .setPosition(0,0)
         .setSize(buttonW, buttonH)
         .activateBy(ControlP5.PRESSED);
+
     objBtn = gui.addButton("gameObj")
         .setPosition(0,buttonH)
         .setSize(buttonW, buttonH)
         .activateBy(ControlP5.PRESSED);
+
     colourRadio = gui.addRadioButton("colour")
                 .setPosition(0,buttonH*2+10)
                 .setSize(buttonW, buttonH)
@@ -71,7 +74,8 @@ void setup() {
                 .addItem("blue",color(0,0,255))
                 .addItem("green",color(0,255,0));
     colourRadio.getItem("black").setState(true); //default
-    modeRadio = gui.addRadioButton("mode")
+
+    penRadio = gui.addRadioButton("pens")
                 .setPosition(0,buttonH*6+20)
                 .setSize(buttonW, buttonH)
                 .setColorForeground(color(120))
@@ -79,12 +83,23 @@ void setup() {
                 .setColorLabel(color(102))
                 .setItemsPerRow(1)
                 .setSpacingColumn(0)
-                .addItem("draw",1)
-                .addItem("erase",2)
+                .addItem("pen",1)
+                .addItem("eraser",2)
                 .addItem("select",3)
-                .addItem("box select",4)
-                .addItem("play", 5);
-    modeRadio.getItem("draw").setState(true); //default
+                .addItem("box select",4);
+    penRadio.getItem("pen").setState(true); //default
+
+    modeRadio = gui.addRadioButton("mode")
+                .setPosition(0,buttonH*10+30)
+                .setSize(buttonW, buttonH)
+                .setColorForeground(color(120))
+                .setColorActive(color(200))
+                .setColorLabel(color(102))
+                .setItemsPerRow(1)
+                .setSpacingColumn(0)
+                .addItem("draw",1)
+                .addItem("play",2);
+    modeRadio.getItem("draw").setState(true);
 
     //
     tablet = new Tablet(this);
@@ -95,7 +110,7 @@ void setup() {
     selectedStrokes = new StrokeGroup();
     //
     penIsDown = false;
-    mode = Mode.DRAW;
+    mode = Mode.PEN;
     translating = false;
     //
     entities = new ArrayList<Entity>();
@@ -105,10 +120,7 @@ void setup() {
     world.setGravity(0, 800);
     world.setEdges();
 
-    up = false;
-    down = false;
-    left = false;
-    right = false;
+    playing = false;
 
     background(bg);
 }
@@ -116,15 +128,14 @@ void setup() {
 //drawing loop
 void draw() {
 
-    if (mode == Mode.PLAY){
+    if (playing){
         world.step();
         for (Entity e: entities) e.update();
         reDraw();
     }
     else {
 
-        if (keyPressed && (player!= null)) player.keyPressed();
-        else if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
+        if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
         else if (!tablet.isLeftDown() && penIsDown) penUp();
         else if ((pmouseX!=mouseX)&&(pmouseY!=mouseY))penHover();
 
@@ -135,21 +146,6 @@ void draw() {
 
 }
 
-void keyPressed(){
-    if (keyCode==UP) up = true;
-    if (keyCode==DOWN) down = true;
-    if (keyCode==LEFT) left = true;
-    if (keyCode==RIGHT) right = true;
-    player.keyHandler(up,down,left,right);
-}
-
-void keyReleased(){
-    if (keyCode==UP) up = false;
-    if (keyCode==DOWN) down = false;
-    if (keyCode==LEFT) left = false;
-    if (keyCode==RIGHT) right = false;
-     player.keyHandler(up,down,left,right);
-}
 
 //GUI handler
 public void controlEvent (ControlEvent e){
@@ -164,25 +160,36 @@ public void controlEvent (ControlEvent e){
     //create Entity out of current selection 
     else if (e.isFrom(objBtn)){
         if (selectedStrokes.getSize() != 0){
-            player = new Player(currentID++, selectedStrokes, 5); //create player
-            world.add(player.getHull()); //add the physical body
-            entities.add(player);
+            entities.add(new Entity(currentID++, selectedStrokes, world)); //create entity
             deselectStrokes();
             reDraw();
+        }
+    }
+
+    else if (e.isFrom(modeRadio)){
+        if ((int)e.getValue()==1){
+            playing = false;
+            reDraw();
+           // penRadio.activateAll();
+        }
+        else if ((int)e.getValue()==2){
+            playing = true;
+            reDraw();
+            //penRadio.deactivateAll();
         }
     }
 
     //CREATE GAME OBJ
 
     //MODES
-    else if (e.isFrom(modeRadio)){
+    else if (e.isFrom(penRadio)){
         switch ((int)e.getValue()){
 
             //DRAW
             case 1:
                 deselectStrokes();
                 reDraw();
-                mode = Mode.DRAW;
+                mode = Mode.PEN;
                 break;
 
             //ERASE
@@ -190,8 +197,8 @@ public void controlEvent (ControlEvent e){
                 reDraw();
                 //if something is selected, erase that, while remaining in select mode
                 if (selectedStrokes.getMembers().size()!=0){
-                    modeRadio.getItem("erase").setState(false);
-                    modeRadio.getItem("select").setState(true);
+                    penRadio.getItem("erase").setState(false);
+                    penRadio.getItem("select").setState(true);
                     eraseSelection();
                     reDraw();
                 }
@@ -207,10 +214,6 @@ public void controlEvent (ControlEvent e){
             //BOXSELECT
             case 4:
                 mode = Mode.BOXSELECT;
-                break;
-
-            case 5:
-                mode = Mode.PLAY;
                 break;
 
             default:

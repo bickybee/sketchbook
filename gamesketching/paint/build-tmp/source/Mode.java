@@ -1,5 +1,5 @@
 //pen modes
 //more to come
 public enum Mode {
-	DRAW, ERASE, SELECT, BOXSELECT, PLAY;
+	ERASE, SELECT, BOXSELECT, PLAY, PEN;
 }

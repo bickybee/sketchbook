@@ -4,9 +4,8 @@
 //redraw everything
 void reDraw(){
     background(bg);
-    world.draw(this);
-    drawAllEntities();
-    drawAllStrokes();
+    if (playing) drawAllEntities();
+    else drawAllStrokes();
 }
 
 //draw points corresponding to current pen location
@@ -29,7 +28,7 @@ void draw(ArrayList<Point> points){
 
 //draw all strokes
 void drawAllStrokes(){
-    selectedStrokes.drawBounds();
+    selectedStrokes.drawBounds(color(102));
     for (Stroke selected: selectedStrokes.getMembers()){
         selected.drawSelected();
     }

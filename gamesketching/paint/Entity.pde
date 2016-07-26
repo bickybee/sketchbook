@@ -10,21 +10,24 @@ class Entity{
   int id;
   float w, h;
   PVector position;
+  PVector initialPosition;
 
-	Entity(int i, StrokeGroup sg){
+	Entity(int i, StrokeGroup sg, FWorld world){
     id = i;
+    sg.belongsToEntity();
     strokes = sg;
-    setupHull();
     position = new PVector(strokes.getLeft(), strokes.getTop());
     w = strokes.getRight() - strokes.getLeft();
     h = strokes.getBottom() - strokes.getTop();
     raster = createGraphics((int)(w+RASTER_PADDING/2),(int)(h+RASTER_PADDING/2));
     setupRaster();
+    setupHull();
+    world.add(hull);
 	}
 
   public void update(){
-    position.x = hull.getX();
-    position.y = hull.getY();
+    position.x = hull.getX()+initialPosition.x;
+    position.y = hull.getY()+initialPosition.y;
   }
 
   public void setupRaster(){
@@ -37,7 +40,9 @@ class Entity{
     GiftWrap wrapper = new GiftWrap();
     Point[] input = strokes.getKeyPoints().toArray(new Point[strokes.getKeyPointsSize()]);
     hull = wrapper.generate(input);
+    hull.setPosition(0,0);
     hull.setRotatable(false);
+    initialPosition = new PVector(position.x, position.y);
   }
 
   public void draw(){

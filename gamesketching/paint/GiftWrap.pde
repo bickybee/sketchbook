@@ -92,7 +92,6 @@ class GiftWrap{
 		for (Point p:hull){
 			poly.vertex(p.getX(), p.getY());
 		}
-		poly.setPosition(0,0);
 		
 		// return the poly
 		return poly;

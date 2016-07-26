@@ -3,7 +3,7 @@
 void penDown(){
 
     //ERASE: remove strokes that intersect pen
-    if (mode==Mode.ERASE || (tablet.getPenKind()==Tablet.ERASER && mode==Mode.DRAW)){       
+    if (mode==Mode.ERASE || (tablet.getPenKind()==Tablet.ERASER && mode==Mode.PEN)){       
         for (Stroke stroke: allStrokes){
             if (stroke.intersects(mouseX, mouseY, pmouseX, pmouseY)){
                 allStrokes.remove(stroke);
@@ -14,7 +14,7 @@ void penDown(){
     }
 
     //DRAW: create strokes!
-    else if (mode==Mode.DRAW){
+    else if (mode==Mode.PEN){
 
         //just pressed: instantiate new stroke
         if (!penIsDown){
@@ -84,7 +84,7 @@ void penDown(){
 void penUp(){
 
     //DRAW: save finished stroke
-    if (mode==Mode.DRAW){
+    if (mode==Mode.PEN){
        Stroke finishedStroke = new Stroke(currentColour, currentStroke);
         allStrokes.add(finishedStroke); //add stroke
         reDraw();

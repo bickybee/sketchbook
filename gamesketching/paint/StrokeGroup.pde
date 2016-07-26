@@ -9,6 +9,7 @@ class StrokeGroup{
 	//List<Polygon> polygons;
 	float top, bottom, left, right; //group bounding box
 	boolean selected;
+	boolean belongsToEntity;
 	int keyPointsSize, size;
 
 	StrokeGroup(){
@@ -18,6 +19,7 @@ class StrokeGroup{
 		//polygons = new ArrayList<Polygon>();
 
 		selected = true;
+		belongsToEntity = false;
 		top = Float.MAX_VALUE;
         bottom = 0;
         left = Float.MAX_VALUE;
@@ -47,10 +49,11 @@ class StrokeGroup{
     	for (Stroke s: members){
     		s.draw();
     	}
+    	if (belongsToEntity) drawBounds(color(50,50,255));
     }
 
-    void drawBounds(){
-        stroke(102);
+    void drawBounds(color c){
+        stroke(c);
         strokeWeight(2);
         drawBox(left, top, right, bottom);
     }
@@ -157,6 +160,14 @@ class StrokeGroup{
 
 	public void setSelected(boolean selected) {
 		this.selected = selected;
+	}
+
+	public void belongsToEntity(){
+		belongsToEntity = true;
+	}
+
+	public void removeFromEntity(){
+		belongsToEntity = false;
 	}
 
 }
