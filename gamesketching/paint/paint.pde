@@ -40,7 +40,10 @@ RadioButton layerRadio;
 ArrayList<Entity> entities;
 Player player;
 int currentID;
+
 FWorld world;
+boolean up, down, left, right;
+
 
 //any initialization goes here
 void setup() {
@@ -96,15 +99,21 @@ void setup() {
     translating = false;
     //
     entities = new ArrayList<Entity>();
+
     Fisica.init(this);
     world = new FWorld();
     world.setGravity(0, 800);
     world.setEdges();
+
+    up = false;
+    down = false;
+    left = false;
+    right = false;
+
     background(bg);
 }
 
 //drawing loop
-//basically the tablet-input handler
 void draw() {
 
     if (mode == Mode.PLAY){
@@ -124,6 +133,22 @@ void draw() {
 
     }
 
+}
+
+void keyPressed(){
+    if (keyCode==UP) up = true;
+    if (keyCode==DOWN) down = true;
+    if (keyCode==LEFT) left = true;
+    if (keyCode==RIGHT) right = true;
+    player.keyHandler(up,down,left,right);
+}
+
+void keyReleased(){
+    if (keyCode==UP) up = false;
+    if (keyCode==DOWN) down = false;
+    if (keyCode==LEFT) left = false;
+    if (keyCode==RIGHT) right = false;
+     player.keyHandler(up,down,left,right);
 }
 
 //GUI handler
