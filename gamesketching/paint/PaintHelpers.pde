@@ -38,8 +38,8 @@ void drawAllStrokes(){
 }
 
 void drawAllEntities(){
-    for (Entity g: entities){
-        g.draw();
+    for (Entity e: entities){
+        e.draw();
     }
 }
 

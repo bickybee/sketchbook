@@ -169,6 +169,7 @@ public void controlEvent (ControlEvent e){
     else if (e.isFrom(modeRadio)){
         if ((int)e.getValue()==1){
             playing = false;
+            restartGame();
             reDraw();
            // penRadio.activateAll();
         }

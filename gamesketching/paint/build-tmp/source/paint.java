@@ -200,6 +200,7 @@ public void controlEvent (ControlEvent e){
     else if (e.isFrom(modeRadio)){
         if ((int)e.getValue()==1){
             playing = false;
+            restartGame();
             reDraw();
            // penRadio.activateAll();
         }
@@ -327,6 +328,20 @@ class Entity{
   public FPoly getHull(){
     return hull;
   }
+
+  public void revert(){
+    hull.recreateInWorld();
+    hull.setVelocity(0,0);
+    hull.setPosition(0,0);
+    update();
+  }
+
+}
+public void restartGame(){
+	for (Entity e: entities){
+		e.revert();
+	}
+	world.step();
 
 }
 /*
@@ -485,8 +500,8 @@ public void drawAllStrokes(){
 }
 
 public void drawAllEntities(){
-    for (Entity g: entities){
-        g.draw();
+    for (Entity e: entities){
+        e.draw();
     }
 }
 

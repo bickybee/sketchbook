@@ -58,4 +58,11 @@ class Entity{
     return hull;
   }
 
+  public void revert(){
+    hull.recreateInWorld();
+    hull.setVelocity(0,0);
+    hull.setPosition(0,0);
+    update();
+  }
+
 }
