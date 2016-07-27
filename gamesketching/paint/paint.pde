@@ -150,7 +150,7 @@ void draw() {
 //GUI handler
 public void controlEvent (ControlEvent e){
 
-    //UNDO
+    //undo last stroke
     if (e.isFrom(undoBtn)){
         if (allStrokes.size() != 0){
             undoStroke();
@@ -166,6 +166,7 @@ public void controlEvent (ControlEvent e){
         }
     }
 
+    //switch between play-mode and paint-mode
     else if (e.isFrom(modeRadio)){
         if ((int)e.getValue()==1){
             playing = false;
@@ -179,8 +180,6 @@ public void controlEvent (ControlEvent e){
             //penRadio.deactivateAll();
         }
     }
-
-    //CREATE GAME OBJ
 
     //MODES
     else if (e.isFrom(penRadio)){

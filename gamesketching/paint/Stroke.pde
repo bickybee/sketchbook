@@ -5,7 +5,7 @@ private final float TOLERANCE = 0.25;
 private final float SS_TOLERANCE = 3;
 private final int MIN_POINTS_TO_SIMPLIFY = 3;
 private final int META_COLOUR = color(200);
-private final int META_WEIGHT = 3;
+private final int META_WEIGHT = 10;
 private final int MIN_AABB_SIZE = 5;
 
 //------------------------------------------

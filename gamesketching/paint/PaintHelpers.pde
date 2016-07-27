@@ -5,7 +5,12 @@
 void reDraw(){
     background(bg);
     if (playing) drawAllEntities();
-    else drawAllStrokes();
+    else{
+    	drawAllStrokes();
+    	for (Entity e: entities){
+    		e.getStrokes().drawBounds(color(135,206,250));
+    	}
+    }
 }
 
 //draw points corresponding to current pen location
@@ -28,7 +33,6 @@ void draw(ArrayList<Point> points){
 
 //draw all strokes
 void drawAllStrokes(){
-    selectedStrokes.drawBounds(color(102));
     for (Stroke selected: selectedStrokes.getMembers()){
         selected.drawSelected();
     }
