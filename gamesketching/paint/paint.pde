@@ -26,7 +26,6 @@ float sx1, sy1, sx2, sy2;
 
 //GUI stuff 
 ControlP5 gui;
-ColorPicker cp;
 int buttonW = 60;
 int buttonH = 40;
 Button undoBtn;
@@ -40,7 +39,7 @@ boolean playing;
 //GAME STUFF!!!!!!!
 ArrayList<Entity> entities;
 int currentID;
-
+Entity selectedEntity;
 FWorld world;
 boolean up, down, left, right;
 
@@ -48,6 +47,27 @@ boolean up, down, left, right;
 //any initialization goes here
 void setup() {
     fullScreen(2); //fullscreen on second screen (tablet)
+
+    //
+    tablet = new Tablet(this);
+    bg = color(255);
+    currentColour = color(0,0,0);
+    currentStroke = new ArrayList<Point>();
+    allStrokes = new ArrayList<Stroke>();
+    selectedStrokes = new StrokeGroup();
+    //
+    penIsDown = false;
+    mode = Mode.PEN;
+    translating = false;
+    //
+    entities = new ArrayList<Entity>();
+    Fisica.init(this);
+    world = new FWorld();
+    world.setGravity(0, 800);
+    world.setEdges();
+
+    playing = false;
+
     //controlP5 setup
     gui = new ControlP5(this);
 
@@ -101,27 +121,6 @@ void setup() {
                 .addItem("play",2);
     modeRadio.getItem("draw").setState(true);
 
-    //
-    tablet = new Tablet(this);
-    bg = color(255);
-    currentColour = color(0,0,0);
-    currentStroke = new ArrayList<Point>();
-    allStrokes = new ArrayList<Stroke>();
-    selectedStrokes = new StrokeGroup();
-    //
-    penIsDown = false;
-    mode = Mode.PEN;
-    translating = false;
-    //
-    entities = new ArrayList<Entity>();
-
-    Fisica.init(this);
-    world = new FWorld();
-    world.setGravity(0, 800);
-    world.setEdges();
-
-    playing = false;
-
     background(bg);
 }
 
@@ -146,90 +145,85 @@ void draw() {
 
 }
 
-
-//GUI handler
-public void controlEvent (ControlEvent e){
-
-    //undo last stroke
-    if (e.isFrom(undoBtn)){
-        if (allStrokes.size() != 0){
+//undo stroke handler
+public void undo(int val){
+    if (allStrokes.size() != 0){
             undoStroke();
-        }
     }
+}
 
-    //create Entity out of current selection 
-    else if (e.isFrom(objBtn)){
-        if (selectedStrokes.getSize() != 0){
-            entities.add(new Entity(currentID++, selectedStrokes, world)); //create entity
-            deselectStrokes();
-            reDraw();
-        }
-    }
+//create game object handler
+public void gameObj(int val){
+    if (selectedStrokes.getSize() != 0){
+        entities.add(new Entity(currentID++, selectedStrokes, world, gui)); //create entity
+        deselectStrokes();
+        reDraw();
+    } 
+}
 
-    //switch between play-mode and paint-mode
-    else if (e.isFrom(modeRadio)){
-        if ((int)e.getValue()==1){
+//play vs. draw mode, radio handler
+public void mode(int val){
+    switch(val){
+        case(1):
             playing = false;
             restartGame();
             reDraw();
-           // penRadio.activateAll();
-        }
-        else if ((int)e.getValue()==2){
+           break;
+        case(2):
             playing = true;
             reDraw();
-            //penRadio.deactivateAll();
-        }
+            break;
+        default:
     }
+}
 
-    //MODES
-    else if (e.isFrom(penRadio)){
-        switch ((int)e.getValue()){
+//pen-mode radio handler
+public void pens(int val){
+    switch (val){
 
-            //DRAW
-            case 1:
-                deselectStrokes();
-                reDraw();
-                mode = Mode.PEN;
-                break;
-
-            //ERASE
-            case 2:
-                reDraw();
-                //if something is selected, erase that, while remaining in select mode
-                if (selectedStrokes.getMembers().size()!=0){
-                    penRadio.getItem("erase").setState(false);
-                    penRadio.getItem("select").setState(true);
-                    eraseSelection();
-                    reDraw();
-                }
-                //otherwise just switch to erase mode
-                else mode = Mode.ERASE;
-                break;
-
-            //SELECT
-            case 3:
-                mode = Mode.SELECT;
-                break;
-
-            //BOXSELECT
-            case 4:
-                mode = Mode.BOXSELECT;
-                break;
-
-            default:
-                break;
-        }
-    }
-
-    //COLOURS
-    else{
-        currentColour = (int)e.getValue();
-        stroke(currentColour);
-        if (selectedStrokes.getMembers().size()!=0){
-            for (Stroke s: selectedStrokes.getMembers()){
-                s.setColour(currentColour);
-            }
+        //DRAW
+        case 1:
+            deselectStrokes();
             reDraw();
+            mode = Mode.PEN;
+            break;
+
+        //ERASE
+        case 2:
+            reDraw();
+            //if something is selected, erase that, while remaining in select mode
+            if (selectedStrokes.getMembers().size()!=0){
+                penRadio.getItem("erase").setState(false);
+                penRadio.getItem("select").setState(true);
+                eraseSelection();
+                reDraw();
+            }
+            //otherwise just switch to erase mode
+            else mode = Mode.ERASE;
+            break;
+
+        //SELECT
+        case 3:
+            mode = Mode.SELECT;
+            break;
+
+        //BOXSELECT
+        case 4:
+            mode = Mode.BOXSELECT;
+            break;
+
+        default:
+            break;
         }
+}
+
+public void colour(int val){
+    currentColour = val;
+    stroke(currentColour);
+    if (selectedStrokes.getMembers().size()!=0){
+        for (Stroke s: selectedStrokes.getMembers()){
+            s.setColour(currentColour);
+        }
+        reDraw();
     }
 }

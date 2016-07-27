@@ -83,8 +83,26 @@ void penDown(){
 
 void penUp(){
 
+    //if TAP (regardless of mode)
+    if ((mouseX==pmouseX)&&(mouseY==pmouseY)){
+        print("tapped \n");
+        if(selectedEntity==null){
+            for (Entity e: entities){ // if the tap is within an entity's bounding box
+                if (e.getStrokes().boundsContain(mouseX, mouseY)){
+                    print("selected \n");
+                    selectedEntity = e;
+                    break; 
+                }
+            }
+        }
+        else if(selectedEntity!=null){
+            selectedEntity = null;
+            print("deselected \n");
+        }
+    }
+
     //DRAW: save finished stroke
-    if (mode==Mode.PEN){
+    else if (mode==Mode.PEN){
        Stroke finishedStroke = new Stroke(currentColour, currentStroke);
         allStrokes.add(finishedStroke); //add stroke
         reDraw();
@@ -92,7 +110,7 @@ void penUp(){
 
     //BOXSELECT: select all strokes whose **BBs** fall within created box
     //(should change this later to be more precise than BBs)
-    if (mode==Mode.BOXSELECT){
+    else if (mode==Mode.BOXSELECT){
         for (Stroke s: allStrokes){
             if (!s.isSelected()&&s.boundsIntersectRect(min(sx1,sx2), min(sy1,sy2), max(sx1,sx2), max(sy1,sy2))){
                 s.select();

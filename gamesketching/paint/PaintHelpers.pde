@@ -6,10 +6,10 @@ void reDraw(){
     background(bg);
     if (playing) drawAllEntities();
     else{
+        for (Entity e: entities){
+            e.getStrokes().drawBounds(color(135,206,250));
+        }
     	drawAllStrokes();
-    	for (Entity e: entities){
-    		e.getStrokes().drawBounds(color(135,206,250));
-    	}
     }
 }
 

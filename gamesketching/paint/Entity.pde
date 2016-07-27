@@ -13,8 +13,9 @@ class Entity{
   float w, h;
   PVector position;
   PVector initialPosition;
+  Group menu;
 
-	Entity(int i, StrokeGroup sg, FWorld world){
+	Entity(int i, StrokeGroup sg, FWorld world, ControlP5 cp5){
     id = i;
     strokes = sg;
     position = new PVector(strokes.getLeft(), strokes.getTop());
@@ -23,6 +24,7 @@ class Entity{
     raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
     setupRaster();
     setupHull();
+    setupMenu(Integer.toString(id), cp5);
     world.add(hull);
 	}
 
@@ -47,6 +49,23 @@ class Entity{
     hull.setPosition(0,0);
     hull.setRotatable(false);
     initialPosition = new PVector(position.x, position.y);
+  }
+
+  void setupMenu(String id, ControlP5 cp5){
+    menu = cp5.addGroup(id).setBackgroundColor(color(0, 64));
+    cp5.addCheckBox("radio"+id)
+   .setPosition(0,0)
+   .setItemWidth(20)
+   .setItemHeight(20)
+   .addItem("fixed_"+id, 0)
+   .addItem("solid_"+id, 1)
+   .setColorLabel(color(255))
+   .moveTo(menu);
+    cp5.addAccordion("acc"+id)
+    .setPosition(position.x, position.y+h)
+    .setWidth((int)(w))
+    .setHeight(20)
+    .addItem(menu);
   }
 
   //draw the sprite where the hull is
@@ -75,5 +94,4 @@ class Entity{
   public StrokeGroup getStrokes(){
     return strokes;
   }
-
 }

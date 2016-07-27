@@ -54,7 +54,7 @@ class StrokeGroup{
 
     void drawBounds(color c){
         stroke(c);
-        strokeWeight(2);
+        strokeWeight(10);
         drawBox(left, top, right, bottom);
     }
 

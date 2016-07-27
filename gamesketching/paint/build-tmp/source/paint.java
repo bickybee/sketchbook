@@ -57,7 +57,6 @@ float sx1, sy1, sx2, sy2;
 
 //GUI stuff 
 ControlP5 gui;
-ColorPicker cp;
 int buttonW = 60;
 int buttonH = 40;
 Button undoBtn;
@@ -71,7 +70,7 @@ boolean playing;
 //GAME STUFF!!!!!!!
 ArrayList<Entity> entities;
 int currentID;
-
+Entity selectedEntity;
 FWorld world;
 boolean up, down, left, right;
 
@@ -79,6 +78,27 @@ boolean up, down, left, right;
 //any initialization goes here
 public void setup() {
      //fullscreen on second screen (tablet)
+
+    //
+    tablet = new Tablet(this);
+    bg = color(255);
+    currentColour = color(0,0,0);
+    currentStroke = new ArrayList<Point>();
+    allStrokes = new ArrayList<Stroke>();
+    selectedStrokes = new StrokeGroup();
+    //
+    penIsDown = false;
+    mode = Mode.PEN;
+    translating = false;
+    //
+    entities = new ArrayList<Entity>();
+    Fisica.init(this);
+    world = new FWorld();
+    world.setGravity(0, 800);
+    world.setEdges();
+
+    playing = false;
+
     //controlP5 setup
     gui = new ControlP5(this);
 
@@ -132,27 +152,6 @@ public void setup() {
                 .addItem("play",2);
     modeRadio.getItem("draw").setState(true);
 
-    //
-    tablet = new Tablet(this);
-    bg = color(255);
-    currentColour = color(0,0,0);
-    currentStroke = new ArrayList<Point>();
-    allStrokes = new ArrayList<Stroke>();
-    selectedStrokes = new StrokeGroup();
-    //
-    penIsDown = false;
-    mode = Mode.PEN;
-    translating = false;
-    //
-    entities = new ArrayList<Entity>();
-
-    Fisica.init(this);
-    world = new FWorld();
-    world.setGravity(0, 800);
-    world.setEdges();
-
-    playing = false;
-
     background(bg);
 }
 
@@ -177,92 +176,86 @@ public void draw() {
 
 }
 
-
-//GUI handler
-public void controlEvent (ControlEvent e){
-
-    //UNDO
-    if (e.isFrom(undoBtn)){
-        if (allStrokes.size() != 0){
+//undo stroke handler
+public void undo(int val){
+    if (allStrokes.size() != 0){
             undoStroke();
-        }
     }
+}
 
-    //create Entity out of current selection 
-    else if (e.isFrom(objBtn)){
-        if (selectedStrokes.getSize() != 0){
-            entities.add(new Entity(currentID++, selectedStrokes, world)); //create entity
-            deselectStrokes();
-            reDraw();
-        }
-    }
+//create game object handler
+public void gameObj(int val){
+    if (selectedStrokes.getSize() != 0){
+        entities.add(new Entity(currentID++, selectedStrokes, world, gui)); //create entity
+        deselectStrokes();
+        reDraw();
+    } 
+}
 
-    else if (e.isFrom(modeRadio)){
-        if ((int)e.getValue()==1){
+//play vs. draw mode, radio handler
+public void mode(int val){
+    switch(val){
+        case(1):
             playing = false;
             restartGame();
             reDraw();
-           // penRadio.activateAll();
-        }
-        else if ((int)e.getValue()==2){
+           break;
+        case(2):
             playing = true;
             reDraw();
-            //penRadio.deactivateAll();
-        }
+            break;
+        default:
     }
+}
 
-    //CREATE GAME OBJ
+//pen-mode radio handler
+public void pens(int val){
+    switch (val){
 
-    //MODES
-    else if (e.isFrom(penRadio)){
-        switch ((int)e.getValue()){
-
-            //DRAW
-            case 1:
-                deselectStrokes();
-                reDraw();
-                mode = Mode.PEN;
-                break;
-
-            //ERASE
-            case 2:
-                reDraw();
-                //if something is selected, erase that, while remaining in select mode
-                if (selectedStrokes.getMembers().size()!=0){
-                    penRadio.getItem("erase").setState(false);
-                    penRadio.getItem("select").setState(true);
-                    eraseSelection();
-                    reDraw();
-                }
-                //otherwise just switch to erase mode
-                else mode = Mode.ERASE;
-                break;
-
-            //SELECT
-            case 3:
-                mode = Mode.SELECT;
-                break;
-
-            //BOXSELECT
-            case 4:
-                mode = Mode.BOXSELECT;
-                break;
-
-            default:
-                break;
-        }
-    }
-
-    //COLOURS
-    else{
-        currentColour = (int)e.getValue();
-        stroke(currentColour);
-        if (selectedStrokes.getMembers().size()!=0){
-            for (Stroke s: selectedStrokes.getMembers()){
-                s.setColour(currentColour);
-            }
+        //DRAW
+        case 1:
+            deselectStrokes();
             reDraw();
+            mode = Mode.PEN;
+            break;
+
+        //ERASE
+        case 2:
+            reDraw();
+            //if something is selected, erase that, while remaining in select mode
+            if (selectedStrokes.getMembers().size()!=0){
+                penRadio.getItem("erase").setState(false);
+                penRadio.getItem("select").setState(true);
+                eraseSelection();
+                reDraw();
+            }
+            //otherwise just switch to erase mode
+            else mode = Mode.ERASE;
+            break;
+
+        //SELECT
+        case 3:
+            mode = Mode.SELECT;
+            break;
+
+        //BOXSELECT
+        case 4:
+            mode = Mode.BOXSELECT;
+            break;
+
+        default:
+            break;
         }
+}
+
+public void colour(int val){
+    currentColour = val;
+    stroke(currentColour);
+    if (selectedStrokes.getMembers().size()!=0){
+        for (Stroke s: selectedStrokes.getMembers()){
+            s.setColour(currentColour);
+        }
+        reDraw();
     }
 }
 
@@ -271,8 +264,10 @@ abstract class Component {
 }
 
 
+//Game object class
 class Entity{
 
+  //padding required to account for stroke width
   static final float RASTER_PADDING = 2f;
 
 	StrokeGroup strokes;
@@ -282,31 +277,35 @@ class Entity{
   float w, h;
   PVector position;
   PVector initialPosition;
+  Group menu;
 
-	Entity(int i, StrokeGroup sg, FWorld world){
+	Entity(int i, StrokeGroup sg, FWorld world, ControlP5 cp5){
     id = i;
-    sg.belongsToEntity();
     strokes = sg;
     position = new PVector(strokes.getLeft(), strokes.getTop());
     w = strokes.getRight() - strokes.getLeft();
     h = strokes.getBottom() - strokes.getTop();
-    raster = createGraphics((int)(w+RASTER_PADDING/2),(int)(h+RASTER_PADDING/2));
+    raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
     setupRaster();
     setupHull();
+    setupMenu(Integer.toString(id), cp5);
     world.add(hull);
 	}
 
+  //for each world.step, move raster position to hull position
   public void update(){
     position.x = hull.getX()+initialPosition.x;
     position.y = hull.getY()+initialPosition.y;
   }
 
+  //draw vector strokes onto raster sprite
   public void setupRaster(){
     for (Stroke s: strokes.getMembers()){
-      s.draw(raster, position, RASTER_PADDING);
+      s.draw(raster, position, RASTER_PADDING/2);
     }
   }
 
+  //use giftwrap algorithm to create convex hull FPoly
   public void setupHull(){
     GiftWrap wrapper = new GiftWrap();
     Point[] input = strokes.getKeyPoints().toArray(new Point[strokes.getKeyPointsSize()]);
@@ -316,10 +315,29 @@ class Entity{
     initialPosition = new PVector(position.x, position.y);
   }
 
+  public void setupMenu(String id, ControlP5 cp5){
+    menu = cp5.addGroup(id).setBackgroundColor(color(0, 64));
+    cp5.addCheckBox("radio"+id)
+   .setPosition(0,0)
+   .setItemWidth(20)
+   .setItemHeight(20)
+   .addItem("fixed"+id, 0)
+   .addItem("solid"+id, 1)
+   .setColorLabel(color(255))
+   .moveTo(menu);
+    cp5.addAccordion("acc"+id)
+    .setPosition(position.x, position.y+h)
+    .setWidth((int)(w))
+    .setHeight(20)
+    .addItem(menu);
+  }
+
+  //draw the sprite where the hull is
   public void draw(){
     image(raster,position.x, position.y);
   }
 
+  //not in use currently...
   public void translate(float dx, float dy){
       position.add(dx,dy);
       //strokes.translate(dx, dy); //hull moves with stroke points!!!!!!
@@ -329,6 +347,7 @@ class Entity{
     return hull;
   }
 
+  //for switching between paint and play mode-- restart play
   public void revert(){
     hull.recreateInWorld();
     hull.setVelocity(0,0);
@@ -336,6 +355,9 @@ class Entity{
     update();
   }
 
+  public StrokeGroup getStrokes(){
+    return strokes;
+  }
 }
 public void restartGame(){
 	for (Entity e: entities){
@@ -467,7 +489,12 @@ class MotionComponent extends Component {
 public void reDraw(){
     background(bg);
     if (playing) drawAllEntities();
-    else drawAllStrokes();
+    else{
+        for (Entity e: entities){
+            e.getStrokes().drawBounds(color(135,206,250));
+        }
+    	drawAllStrokes();
+    }
 }
 
 //draw points corresponding to current pen location
@@ -490,7 +517,6 @@ public void draw(ArrayList<Point> points){
 
 //draw all strokes
 public void drawAllStrokes(){
-    selectedStrokes.drawBounds(color(102));
     for (Stroke selected: selectedStrokes.getMembers()){
         selected.drawSelected();
     }
@@ -632,8 +658,26 @@ public void penDown(){
 
 public void penUp(){
 
+    //if TAP (regardless of mode)
+    if ((mouseX==pmouseX)&&(mouseY==pmouseY)){
+        print("tapped \n");
+        if(selectedEntity==null){
+            for (Entity e: entities){ // if the tap is within an entity's bounding box
+                if (e.getStrokes().boundsContain(mouseX, mouseY)){
+                    print("selected \n");
+                    selectedEntity = e;
+                    break; 
+                }
+            }
+        }
+        else if(selectedEntity!=null){
+            selectedEntity = null;
+            print("deselected \n");
+        }
+    }
+
     //DRAW: save finished stroke
-    if (mode==Mode.PEN){
+    else if (mode==Mode.PEN){
        Stroke finishedStroke = new Stroke(currentColour, currentStroke);
         allStrokes.add(finishedStroke); //add stroke
         reDraw();
@@ -641,7 +685,7 @@ public void penUp(){
 
     //BOXSELECT: select all strokes whose **BBs** fall within created box
     //(should change this later to be more precise than BBs)
-    if (mode==Mode.BOXSELECT){
+    else if (mode==Mode.BOXSELECT){
         for (Stroke s: allStrokes){
             if (!s.isSelected()&&s.boundsIntersectRect(min(sx1,sx2), min(sy1,sy2), max(sx1,sx2), max(sy1,sy2))){
                 s.select();
@@ -720,7 +764,7 @@ private final float TOLERANCE = 0.25f;
 private final float SS_TOLERANCE = 3;
 private final int MIN_POINTS_TO_SIMPLIFY = 3;
 private final int META_COLOUR = color(200);
-private final int META_WEIGHT = 3;
+private final int META_WEIGHT = 10;
 private final int MIN_AABB_SIZE = 5;
 
 //------------------------------------------
@@ -1096,7 +1140,7 @@ class StrokeGroup{
 
     public void drawBounds(int c){
         stroke(c);
-        strokeWeight(2);
+        strokeWeight(10);
         drawBox(left, top, right, bottom);
     }
 
