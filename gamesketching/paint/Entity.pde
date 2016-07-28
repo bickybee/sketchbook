@@ -94,4 +94,14 @@ class Entity{
   public StrokeGroup getStrokes(){
     return strokes;
   }
+
+  public void toggleStatic(){
+    hull.setStatic(!hull.isStatic());
+    print(hull.isStatic()+"\n");
+  }
+
+  public void toggleSolid(){
+
+  }
+
 }

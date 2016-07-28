@@ -46,7 +46,7 @@ boolean up, down, left, right;
 
 //any initialization goes here
 void setup() {
-    fullScreen(2); //fullscreen on second screen (tablet)
+    size(800,600); //fullscreen on second screen (tablet)
 
     //
     tablet = new Tablet(this);
@@ -166,11 +166,13 @@ public void mode(int val){
     switch(val){
         case(1):
             playing = false;
+            for (Entity e: entities) e.menu.show();
             restartGame();
             reDraw();
            break;
         case(2):
             playing = true;
+            for (Entity e: entities) e.menu.hide();
             reDraw();
             break;
         default:
@@ -225,5 +227,26 @@ public void colour(int val){
             s.setColour(currentColour);
         }
         reDraw();
+    }
+}
+
+//game object editing menu handler
+public void controlEvent(ControlEvent event){
+    for (Entity e: entities){
+        if (event.getController().getParent()==e.menu){
+            print(event.isGroup()+"\n");
+            switch((int)event.getValue()){
+                case 0:
+                    print("toggling static \n");
+                    e.toggleStatic();
+                    break;
+                case 1:
+                    e.toggleSolid();
+                    break;
+                default:
+                    break; 
+            }
+            break;
+        }
     }
 }

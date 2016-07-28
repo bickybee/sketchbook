@@ -84,25 +84,25 @@ void penDown(){
 void penUp(){
 
     //if TAP (regardless of mode)
-    if ((mouseX==pmouseX)&&(mouseY==pmouseY)){
-        print("tapped \n");
-        if(selectedEntity==null){
-            for (Entity e: entities){ // if the tap is within an entity's bounding box
-                if (e.getStrokes().boundsContain(mouseX, mouseY)){
-                    print("selected \n");
-                    selectedEntity = e;
-                    break; 
-                }
-            }
-        }
-        else if(selectedEntity!=null){
-            selectedEntity = null;
-            print("deselected \n");
-        }
-    }
+    // if ((mouseX==pmouseX)&&(mouseY==pmouseY)){
+    //     print("tapped \n");
+    //     if(selectedEntity==null){
+    //         for (Entity e: entities){ // if the tap is within an entity's bounding box
+    //             if (e.getStrokes().boundsContain(mouseX, mouseY)){
+    //                 print("selected \n");
+    //                 selectedEntity = e;
+    //                 break; 
+    //             }
+    //         }
+    //     }
+    //     else if(selectedEntity!=null){
+    //         selectedEntity = null;
+    //         print("deselected \n");
+    //     }
+    // }
 
     //DRAW: save finished stroke
-    else if (mode==Mode.PEN){
+    if (mode==Mode.PEN){
        Stroke finishedStroke = new Stroke(currentColour, currentStroke);
         allStrokes.add(finishedStroke); //add stroke
         reDraw();
