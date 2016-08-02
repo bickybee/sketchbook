@@ -37,16 +37,16 @@ RadioButton modeRadio;
 boolean playing;
 
 //GAME STUFF!!!!!!!
-ArrayList<Entity> entities;
+ArrayList<GameObj> gameObjs;
 int currentID;
-Entity selectedEntity;
+GameObj selectedGameObj;
 FWorld world;
 boolean up, down, left, right;
 
 
 //any initialization goes here
 void setup() {
-    size(800,600); //fullscreen on second screen (tablet)
+    fullScreen(2); 
 
     //
     tablet = new Tablet(this);
@@ -60,7 +60,7 @@ void setup() {
     mode = Mode.PEN;
     translating = false;
     //
-    entities = new ArrayList<Entity>();
+    gameObjs = new ArrayList<GameObj>();
     Fisica.init(this);
     world = new FWorld();
     world.setGravity(0, 800);
@@ -129,7 +129,7 @@ void draw() {
 
     if (playing){
         world.step();
-        for (Entity e: entities) e.update();
+        for (GameObj obj: gameObjs) obj.update();
         reDraw();
     }
     else {
@@ -155,7 +155,7 @@ public void undo(int val){
 //create game object handler
 public void gameObj(int val){
     if (selectedStrokes.getSize() != 0){
-        entities.add(new Entity(currentID++, selectedStrokes, world, gui)); //create entity
+        gameObjs.add(new GameObj(currentID++, selectedStrokes, world, gui)); //create entity
         deselectStrokes();
         reDraw();
     } 
@@ -166,13 +166,13 @@ public void mode(int val){
     switch(val){
         case(1):
             playing = false;
-            for (Entity e: entities) e.menu.show();
+            for (GameObj obj: gameObjs) obj.showUI();
             restartGame();
             reDraw();
            break;
         case(2):
             playing = true;
-            for (Entity e: entities) e.menu.hide();
+            for (GameObj obj: gameObjs) obj.hideUI();
             reDraw();
             break;
         default:
@@ -232,21 +232,9 @@ public void colour(int val){
 
 //game object editing menu handler
 public void controlEvent(ControlEvent event){
-    for (Entity e: entities){
-        if (event.getController().getParent()==e.menu){
-            print(event.isGroup()+"\n");
-            switch((int)event.getValue()){
-                case 0:
-                    print("toggling static \n");
-                    e.toggleStatic();
-                    break;
-                case 1:
-                    e.toggleSolid();
-                    break;
-                default:
-                    break; 
-            }
-            break;
+    for (GameObj obj: gameObjs){
+        if (event.isFrom(obj.getUI())){
+            obj.updateAttributes();
         }
     }
 }

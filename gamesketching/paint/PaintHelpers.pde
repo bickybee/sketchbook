@@ -4,10 +4,11 @@
 //redraw everything
 void reDraw(){
     background(bg);
-    if (playing) drawAllEntities();
+    world.draw();
+    if (playing) drawAllGameObjs();
     else{
-        for (Entity e: entities){
-            e.getStrokes().drawBounds(color(135,206,250));
+        for (GameObj obj: gameObjs){
+            obj.getStrokes().drawBounds(color(135,206,250));
         }
     	drawAllStrokes();
     }
@@ -41,9 +42,9 @@ void drawAllStrokes(){
     }
 }
 
-void drawAllEntities(){
-    for (Entity e: entities){
-        e.draw();
+void drawAllGameObjs(){
+    for (GameObj obj: gameObjs){
+        obj.draw();
     }
 }
 

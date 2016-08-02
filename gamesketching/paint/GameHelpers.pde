@@ -1,6 +1,6 @@
 void restartGame(){
-	for (Entity e: entities){
-		e.revert();
+	for (GameObj obj: gameObjs){
+		obj.revert();
 	}
 	world.step();
 

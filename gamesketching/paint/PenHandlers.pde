@@ -86,17 +86,17 @@ void penUp(){
     //if TAP (regardless of mode)
     // if ((mouseX==pmouseX)&&(mouseY==pmouseY)){
     //     print("tapped \n");
-    //     if(selectedEntity==null){
-    //         for (Entity e: entities){ // if the tap is within an entity's bounding box
-    //             if (e.getStrokes().boundsContain(mouseX, mouseY)){
+    //     if(selectedGameObj==null){
+    //         for (GameObj obj: entities){ // if the tap is within an GameObj's bounding box
+    //             if (obj.getStrokes().boundsContain(mouseX, mouseY)){
     //                 print("selected \n");
-    //                 selectedEntity = e;
+    //                 selectedGameObj = obj;
     //                 break; 
     //             }
     //         }
     //     }
-    //     else if(selectedEntity!=null){
-    //         selectedEntity = null;
+    //     else if(selectedGameObj!=null){
+    //         selectedGameObj = null;
     //         print("deselected \n");
     //     }
     // }
