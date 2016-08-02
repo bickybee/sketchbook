@@ -197,11 +197,13 @@ public void mode(int val){
     switch(val){
         case(1):
             playing = false;
+            for (Entity e: entities) e.menu.show();
             restartGame();
             reDraw();
            break;
         case(2):
             playing = true;
+            for (Entity e: entities) e.menu.hide();
             reDraw();
             break;
         default:
@@ -256,6 +258,27 @@ public void colour(int val){
             s.setColour(currentColour);
         }
         reDraw();
+    }
+}
+
+//game object editing menu handler
+public void controlEvent(ControlEvent event){
+    for (Entity e: entities){
+        if (event.getController().getParent()==e.menu){
+            print(event.isGroup()+"\n");
+            switch((int)event.getValue()){
+                case 0:
+                    print("toggling static \n");
+                    e.toggleStatic();
+                    break;
+                case 1:
+                    e.toggleSolid();
+                    break;
+                default:
+                    break; 
+            }
+            break;
+        }
     }
 }
 
@@ -321,8 +344,8 @@ class Entity{
    .setPosition(0,0)
    .setItemWidth(20)
    .setItemHeight(20)
-   .addItem("fixed"+id, 0)
-   .addItem("solid"+id, 1)
+   .addItem("fixed_"+id, 0)
+   .addItem("solid_"+id, 1)
    .setColorLabel(color(255))
    .moveTo(menu);
     cp5.addAccordion("acc"+id)
@@ -358,6 +381,16 @@ class Entity{
   public StrokeGroup getStrokes(){
     return strokes;
   }
+
+  public void toggleStatic(){
+    hull.setStatic(!hull.isStatic());
+    print(hull.isStatic()+"\n");
+  }
+
+  public void toggleSolid(){
+
+  }
+
 }
 public void restartGame(){
 	for (Entity e: entities){
@@ -659,25 +692,25 @@ public void penDown(){
 public void penUp(){
 
     //if TAP (regardless of mode)
-    if ((mouseX==pmouseX)&&(mouseY==pmouseY)){
-        print("tapped \n");
-        if(selectedEntity==null){
-            for (Entity e: entities){ // if the tap is within an entity's bounding box
-                if (e.getStrokes().boundsContain(mouseX, mouseY)){
-                    print("selected \n");
-                    selectedEntity = e;
-                    break; 
-                }
-            }
-        }
-        else if(selectedEntity!=null){
-            selectedEntity = null;
-            print("deselected \n");
-        }
-    }
+    // if ((mouseX==pmouseX)&&(mouseY==pmouseY)){
+    //     print("tapped \n");
+    //     if(selectedEntity==null){
+    //         for (Entity e: entities){ // if the tap is within an entity's bounding box
+    //             if (e.getStrokes().boundsContain(mouseX, mouseY)){
+    //                 print("selected \n");
+    //                 selectedEntity = e;
+    //                 break; 
+    //             }
+    //         }
+    //     }
+    //     else if(selectedEntity!=null){
+    //         selectedEntity = null;
+    //         print("deselected \n");
+    //     }
+    // }
 
     //DRAW: save finished stroke
-    else if (mode==Mode.PEN){
+    if (mode==Mode.PEN){
        Stroke finishedStroke = new Stroke(currentColour, currentStroke);
         allStrokes.add(finishedStroke); //add stroke
         reDraw();
@@ -1257,7 +1290,7 @@ class StrokeGroup{
 	}
 
 }
-    public void settings() {  fullScreen(2); }
+    public void settings() {  size(800,600); }
     static public void main(String[] passedArgs) {
         String[] appletArgs = new String[] { "paint" };
         if (passedArgs != null) {
