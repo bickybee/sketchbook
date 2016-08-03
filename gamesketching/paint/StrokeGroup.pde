@@ -40,6 +40,10 @@ class StrokeGroup{
         if (s.bottom > bottom) bottom = s.bottom;
 	}
 
+	void recalculateBounds(){
+		
+	}
+
 	boolean boundsContain(float x, float y){
         if (x > left && x < right && y > top && y < bottom) return true;
         else return false;

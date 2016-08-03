@@ -8,7 +8,8 @@ void reDraw(){
     if (playing) drawAllGameObjs();
     else{
         for (GameObj obj: gameObjs){
-            obj.getStrokes().drawBounds(color(135,206,250));
+            if (!obj.isSelected()) obj.getStrokes().drawBounds(color(135,206,250));
+            else obj.getStrokes().drawBounds(color(50,206,135));
         }
     	drawAllStrokes();
     }

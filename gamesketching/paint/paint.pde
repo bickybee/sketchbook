@@ -236,5 +236,20 @@ public void controlEvent(ControlEvent event){
         if (event.isFrom(obj.getUI())){
             obj.updateAttributes();
         }
+        else if (event.isFrom(obj.getSelectBtn())){
+
+            if (selectedGameObj==obj){
+                selectedGameObj.deselect();
+                reDraw();
+                selectedGameObj = null;
+            }
+            else {
+                if (selectedGameObj!=null) selectedGameObj.deselect();
+                selectedGameObj = obj;
+                obj.select();
+                reDraw();
+            }
+            print("selected \n");
+        }
     }
 }

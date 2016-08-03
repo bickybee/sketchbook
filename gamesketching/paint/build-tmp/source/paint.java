@@ -68,16 +68,16 @@ RadioButton modeRadio;
 boolean playing;
 
 //GAME STUFF!!!!!!!
-ArrayList<Entity> entities;
+ArrayList<GameObj> gameObjs;
 int currentID;
-Entity selectedEntity;
+GameObj selectedGameObj;
 FWorld world;
 boolean up, down, left, right;
 
 
 //any initialization goes here
 public void setup() {
-     //fullscreen on second screen (tablet)
+     
 
     //
     tablet = new Tablet(this);
@@ -91,7 +91,7 @@ public void setup() {
     mode = Mode.PEN;
     translating = false;
     //
-    entities = new ArrayList<Entity>();
+    gameObjs = new ArrayList<GameObj>();
     Fisica.init(this);
     world = new FWorld();
     world.setGravity(0, 800);
@@ -160,7 +160,7 @@ public void draw() {
 
     if (playing){
         world.step();
-        for (Entity e: entities) e.update();
+        for (GameObj obj: gameObjs) obj.update();
         reDraw();
     }
     else {
@@ -186,7 +186,7 @@ public void undo(int val){
 //create game object handler
 public void gameObj(int val){
     if (selectedStrokes.getSize() != 0){
-        entities.add(new Entity(currentID++, selectedStrokes, world, gui)); //create entity
+        gameObjs.add(new GameObj(currentID++, selectedStrokes, world, gui)); //create entity
         deselectStrokes();
         reDraw();
     } 
@@ -197,13 +197,13 @@ public void mode(int val){
     switch(val){
         case(1):
             playing = false;
-            for (Entity e: entities) e.menu.show();
+            for (GameObj obj: gameObjs) obj.showUI();
             restartGame();
             reDraw();
            break;
         case(2):
             playing = true;
-            for (Entity e: entities) e.menu.hide();
+            for (GameObj obj: gameObjs) obj.hideUI();
             reDraw();
             break;
         default:
@@ -263,140 +263,283 @@ public void colour(int val){
 
 //game object editing menu handler
 public void controlEvent(ControlEvent event){
-    for (Entity e: entities){
-        if (event.getController().getParent()==e.menu){
-            print(event.isGroup()+"\n");
-            switch((int)event.getValue()){
-                case 0:
-                    print("toggling static \n");
-                    e.toggleStatic();
-                    break;
-                case 1:
-                    e.toggleSolid();
-                    break;
-                default:
-                    break; 
+    for (GameObj obj: gameObjs){
+        if (event.isFrom(obj.getUI())){
+            obj.updateAttributes();
+        }
+        else if (event.isFrom(obj.getSelectBtn())){
+            if (selectedGameObj==obj){
+                selectedGameObj.deselect();
+                selectedGameObj = null;
             }
-            break;
+            else {
+                if (selectedGameObj!=null) selectedGameObj.deselect();
+                selectedGameObj = obj;
+                obj.select();
+            }
+            print("selected \n");
         }
     }
 }
+public void restartGame(){
+	for (GameObj obj: gameObjs){
+		obj.revert();
+	}
+	world.step();
 
-abstract class Component {
-	//abstract void update();
 }
 
 
 //Game object class
-class Entity{
+class GameObj{
 
   //padding required to account for stroke width
   static final float RASTER_PADDING = 2f;
 
-	StrokeGroup strokes;
-  PGraphics raster;
-  FPoly hull;
-  int id;
+	StrokeGroup strokes; //vector stroke group
+  PGraphics raster; //raster of vector strokes, for rendering efficiency during gameplay
+  FBody body; //physics body
+  int id; //id of gameObj
   float w, h;
-  PVector position;
-  PVector initialPosition;
-  Group menu;
+  PVector gamePosition; //position in gameplay mode
+  PVector paintPosition; //position in editing mode
+  CheckBox ui; //attribute editor ui
+  Button selectBtn; //used to select object for editing
 
-	Entity(int i, StrokeGroup sg, FWorld world, ControlP5 cp5){
+  //some attribute bools
+  boolean pickup, visible, slippery, bouncy, isInWorld, selected;
+
+	GameObj(int i, StrokeGroup sg, FWorld world, ControlP5 cp5){
     id = i;
     strokes = sg;
-    position = new PVector(strokes.getLeft(), strokes.getTop());
+    gamePosition = new PVector(strokes.getLeft(), strokes.getTop());
     w = strokes.getRight() - strokes.getLeft();
     h = strokes.getBottom() - strokes.getTop();
     raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
+    body = setupBody(false);
+    paintPosition = new PVector(gamePosition.x, gamePosition.y);
+    pickup = false;
+    visible = true;
+    slippery = false;
+    bouncy = false;
+    isInWorld = true;
+    selected = false;
     setupRaster();
-    setupHull();
     setupMenu(Integer.toString(id), cp5);
-    world.add(hull);
+    world.add(body);
 	}
 
-  //for each world.step, move raster position to hull position
+  //for each world.step, move raster gamePosition to body gamePosition
   public void update(){
-    position.x = hull.getX()+initialPosition.x;
-    position.y = hull.getY()+initialPosition.y;
+    gamePosition.x = body.getX()+paintPosition.x;
+    gamePosition.y = body.getY()+paintPosition.y;
+    if (pickup){
+      if (body.getContacts().size()!=0){//for now, pickups disappear upon contact with any body
+        world.remove(body);
+        isInWorld = false;
+      }
+    }
+  }
+
+  public void addStroke(Stroke s){
+    strokes.addMember(s);
+    gamePosition = new PVector(strokes.getLeft(), strokes.getTop());
+    w = strokes.getRight() - strokes.getLeft();
+    h = strokes.getBottom() - strokes.getTop();
+    raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
+    paintPosition = new PVector(gamePosition.x, gamePosition.y);
+    newBody(ui.getState(2)); //should probably use a bool
+    setupRaster();
+    reDraw();
   }
 
   //draw vector strokes onto raster sprite
   public void setupRaster(){
     for (Stroke s: strokes.getMembers()){
-      s.draw(raster, position, RASTER_PADDING/2);
+      s.draw(raster, gamePosition, RASTER_PADDING/2);
     }
   }
 
-  //use giftwrap algorithm to create convex hull FPoly
-  public void setupHull(){
+  //setup physics body for gameobj
+  //if isExact, use the precise points to create the body as a series of lines
+  //otherwise create a wrapping polygon
+  public FBody setupBody(boolean isExact){
+    FBody b;
+    if (isExact) b = createLineCompound(false);
+    else b = createHull();
+    b.setPosition(0,0);
+    b.setRotatable(false);
+    b.setRestitution(0);
+    b.setFriction(100);
+    return b;
+  }
+
+//use giftwrap algorithm to create convex body FPoly
+  public FPoly createHull(){
     GiftWrap wrapper = new GiftWrap();
     Point[] input = strokes.getKeyPoints().toArray(new Point[strokes.getKeyPointsSize()]);
-    hull = wrapper.generate(input);
-    hull.setPosition(0,0);
-    hull.setRotatable(false);
-    initialPosition = new PVector(position.x, position.y);
+    return wrapper.generate(input);
   }
 
-  public void setupMenu(String id, ControlP5 cp5){
-    menu = cp5.addGroup(id).setBackgroundColor(color(0, 64));
-    cp5.addCheckBox("radio"+id)
-   .setPosition(0,0)
-   .setItemWidth(20)
-   .setItemHeight(20)
-   .addItem("fixed_"+id, 0)
-   .addItem("solid_"+id, 1)
-   .setColorLabel(color(255))
-   .moveTo(menu);
-    cp5.addAccordion("acc"+id)
-    .setPosition(position.x, position.y+h)
-    .setWidth((int)(w))
-    .setHeight(20)
-    .addItem(menu);
+  //string together the points to make a big line body
+  public FCompound createLineCompound(boolean isJumpThrough){
+      FCompound lines = new FCompound();
+      for (Stroke s: strokes.getMembers()){
+        for (int i = 1; i < s.keyPoints.length; i++){
+          lines.addBody(new FLine(s.keyPoints[i-1].getX(), s.keyPoints[i-1].getY(),s.keyPoints[i].getX(), s.keyPoints[i].getY()));
+        }
+        //for some reason collision is only detected one way, so here's how to get two way:
+        //NVM things just get stuck :-(
+        // if (!isJumpThrough){
+        //   for (int i = s.keyPoints.length-1; i >= 1; i--){
+        //     lines.addBody(new FLine(s.keyPoints[i].getX(), s.keyPoints[i].getY(),s.keyPoints[i-1].getX(), s.keyPoints[i-1].getY()));
+        //   }
+        // }
+      }
+      return lines;
   }
 
-  //draw the sprite where the hull is
+
+  //draw the sprite where the body is
   public void draw(){
-    image(raster,position.x, position.y);
+    if (visible&&isInWorld) image(raster,gamePosition.x, gamePosition.y);
   }
 
   //not in use currently...
   public void translate(float dx, float dy){
-      position.add(dx,dy);
-      //strokes.translate(dx, dy); //hull moves with stroke points!!!!!!
+      gamePosition.add(dx,dy);
+      //strokes.translate(dx, dy); //body moves with stroke points!!!!!!
   }
 
-  public FPoly getHull(){
-    return hull;
+  public void setStatic(boolean state){
+    if (state!=body.isStatic()) body.setStatic(state);
+    print("static "+body.isStatic()+"\n");
+  }
+
+  public void setSolid(boolean state){
+    if (state!=body.isSensor()) body.setSensor(state);
+    print("sensor "+body.isSensor()+"\n");
+  }
+
+  public void setExact(boolean state){
+    if ((state&&(body instanceof FPoly))||(!state)&&(body instanceof FCompound)){ 
+      newBody(state);
+    }
+  }
+
+  public void newBody(boolean isExact){
+      world.remove(body);
+      FBody newBody = setupBody(isExact);
+      newBody.setStatic(body.isStatic());
+      newBody.setSensor(body.isSensor());
+      body = newBody;
+      setSlippery(slippery);
+      setBouncy(bouncy);
+      world.add(body);
+  }
+
+  public void setPickup(boolean state){
+    pickup = state;
+  }
+
+  public void setBouncy(boolean state){
+    bouncy = state;
+    if (bouncy) body.setRestitution(1);
+    else body.setRestitution(0);
+  }
+
+  public void setSlippery(boolean state){
+    slippery = state;
+    if (slippery) body.setFriction(0);
+    else body.setFriction(100);
+  }
+
+    //setup attributes menu
+  public void setupMenu(String id, ControlP5 cp5){
+    Group menu = cp5.addGroup("attributes_"+id).setBackgroundColor(color(0, 64))
+    .setPosition(paintPosition.x+77, paintPosition.y+h+20)
+    .setHeight(20)
+    .setWidth(75)
+    .close();
+
+    ui = cp5.addCheckBox("checkbox"+id)
+   .setPosition(0,0)
+   .setItemWidth(20)
+   .setItemHeight(20)
+   .addItem("static_"+id, 1)
+   .addItem("sensor_"+id, 2)
+   .addItem("exact_"+id, 3)
+   .addItem("pickup_"+id, 4)
+   .addItem("bouncy_"+id, 5)
+   .addItem("slippery_"+id, 6)
+   .setColorLabel(color(0))
+   .moveTo(menu);
+
+   selectBtn = cp5.addButton("select_"+id)
+      .setPosition(paintPosition.x,paintPosition.y+h)
+      .setHeight(20)
+      .setWidth(75);
+  }
+
+  public void updateAttributes(){
+    setStatic(ui.getState(0));
+    setSolid(ui.getState(1));
+    setExact(ui.getState(2));
+    setPickup(ui.getState(3));
+    setBouncy(ui.getState(4));
+    setSlippery(ui.getState(5));
+  }
+
+  public void updateStrokes(){
+
   }
 
   //for switching between paint and play mode-- restart play
   public void revert(){
-    hull.recreateInWorld();
-    hull.setVelocity(0,0);
-    hull.setPosition(0,0);
+    body.recreateInWorld();
+    body.setVelocity(0,0);
+    body.setPosition(0,0);
     update();
   }
+
+  public FBody getBody(){
+    return body;
+  }
+
 
   public StrokeGroup getStrokes(){
     return strokes;
   }
 
-  public void toggleStatic(){
-    hull.setStatic(!hull.isStatic());
-    print(hull.isStatic()+"\n");
+  public CheckBox getUI(){
+    return ui;
   }
 
-  public void toggleSolid(){
-
+  public Button getSelectBtn(){
+    return selectBtn;
   }
 
-}
-public void restartGame(){
-	for (Entity e: entities){
-		e.revert();
-	}
-	world.step();
+  public void hideUI(){
+    ui.getParent().hide();
+    selectBtn.hide();
+  }
+
+  public void showUI(){
+    ui.getParent().show();
+    selectBtn.show();
+  }
+
+  public void select(){
+    selected = true;
+  }
+
+  public void deselect(){
+    selected = false;
+  }
+
+  public boolean isSelected(){
+    return selected;
+  }
 
 }
 /*
@@ -503,28 +646,18 @@ class GiftWrap{
 			  (point.getX() - linePoint1.getX()) * (linePoint2.getY() - linePoint1.getY());
 	}
 }
-class MotionComponent extends Component {
-	float velocity;
-	float acceleration;
-	MotionComponent(){
-		velocity = 0f;
-		acceleration = 0f;
-	}
-
-	public void update(){
-		//bloop
-	}
-}
 
 // paint helper functions
 
 //redraw everything
 public void reDraw(){
     background(bg);
-    if (playing) drawAllEntities();
+    world.draw();
+    if (playing) drawAllGameObjs();
     else{
-        for (Entity e: entities){
-            e.getStrokes().drawBounds(color(135,206,250));
+        for (GameObj obj: gameObjs){
+            if (!obj.isSelected()) obj.getStrokes().drawBounds(color(135,206,250));
+            else obj.getStrokes().drawBounds(color(50,206,135));
         }
     	drawAllStrokes();
     }
@@ -558,9 +691,9 @@ public void drawAllStrokes(){
     }
 }
 
-public void drawAllEntities(){
-    for (Entity e: entities){
-        e.draw();
+public void drawAllGameObjs(){
+    for (GameObj obj: gameObjs){
+        obj.draw();
     }
 }
 
@@ -667,14 +800,8 @@ public void penDown(){
 
         //dragging: check for strokes that intersect and select them
         else if (mode==Mode.SELECT){
-            for (Stroke stroke: allStrokes){
-                if (!stroke.isSelected()&&stroke.intersects(mouseX, mouseY, pmouseX,pmouseY)){
-                    stroke.select();
-                    selectedStrokes.addMember(stroke);
-                    reDraw();
-                    break;
-                }
-            }
+            if (selectedGameObj==null) selectStrokesFrom(allStrokes);
+            else selectStrokesFrom(selectedGameObj.getStrokes().getMembers());
         }
 
         //dragging: create box
@@ -694,37 +821,38 @@ public void penUp(){
     //if TAP (regardless of mode)
     // if ((mouseX==pmouseX)&&(mouseY==pmouseY)){
     //     print("tapped \n");
-    //     if(selectedEntity==null){
-    //         for (Entity e: entities){ // if the tap is within an entity's bounding box
-    //             if (e.getStrokes().boundsContain(mouseX, mouseY)){
+    //     if(selectedGameObj==null){
+    //         for (GameObj obj: entities){ // if the tap is within an GameObj's bounding box
+    //             if (obj.getStrokes().boundsContain(mouseX, mouseY)){
     //                 print("selected \n");
-    //                 selectedEntity = e;
+    //                 selectedGameObj = obj;
     //                 break; 
     //             }
     //         }
     //     }
-    //     else if(selectedEntity!=null){
-    //         selectedEntity = null;
+    //     else if(selectedGameObj!=null){
+    //         selectedGameObj = null;
     //         print("deselected \n");
     //     }
     // }
 
+    if (translating){//just finished translating strokes
+        if(selectedGameObj!=null) selectedGameObj.updateStrokes();
+    }
+
     //DRAW: save finished stroke
-    if (mode==Mode.PEN){
+    else if (mode==Mode.PEN){
        Stroke finishedStroke = new Stroke(currentColour, currentStroke);
         allStrokes.add(finishedStroke); //add stroke
+        if (selectedGameObj!=null) selectedGameObj.addStroke(finishedStroke);
         reDraw();
     }
 
     //BOXSELECT: select all strokes whose **BBs** fall within created box
     //(should change this later to be more precise than BBs)
     else if (mode==Mode.BOXSELECT){
-        for (Stroke s: allStrokes){
-            if (!s.isSelected()&&s.boundsIntersectRect(min(sx1,sx2), min(sy1,sy2), max(sx1,sx2), max(sy1,sy2))){
-                s.select();
-                selectedStrokes.addMember(s);
-            }
-        }
+        if (selectedGameObj==null) boxSelectFrom(allStrokes);
+        else boxSelectFrom(selectedGameObj.getStrokes().getMembers());
         reDraw();
     }
 
@@ -745,6 +873,26 @@ public void penHover(){
             cursor(ARROW);
             translating = false;
         } 
+    }
+}
+
+public void selectStrokesFrom(ArrayList<Stroke> strokes){
+    for (Stroke stroke: strokes){
+        if (!stroke.isSelected()&&stroke.intersects(mouseX, mouseY, pmouseX,pmouseY)){
+            stroke.select();
+            selectedStrokes.addMember(stroke);
+            reDraw();
+            break;
+        }
+    }
+}
+
+public void boxSelectFrom(ArrayList<Stroke> strokes){
+    for (Stroke s: strokes){
+        if (!s.isSelected()&&s.boundsIntersectRect(min(sx1,sx2), min(sy1,sy2), max(sx1,sx2), max(sy1,sy2))){
+            s.select();
+            selectedStrokes.addMember(s);
+        }
     }
 }
 
@@ -1159,6 +1307,10 @@ class StrokeGroup{
         if (s.bottom > bottom) bottom = s.bottom;
 	}
 
+	public void recalculateBounds(){
+		
+	}
+
 	public boolean boundsContain(float x, float y){
         if (x > left && x < right && y > top && y < bottom) return true;
         else return false;
@@ -1290,7 +1442,7 @@ class StrokeGroup{
 	}
 
 }
-    public void settings() {  size(800,600); }
+    public void settings() {  fullScreen(2); }
     static public void main(String[] passedArgs) {
         String[] appletArgs = new String[] { "paint" };
         if (passedArgs != null) {

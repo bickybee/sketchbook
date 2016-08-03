@@ -59,14 +59,8 @@ void penDown(){
 
         //dragging: check for strokes that intersect and select them
         else if (mode==Mode.SELECT){
-            for (Stroke stroke: allStrokes){
-                if (!stroke.isSelected()&&stroke.intersects(mouseX, mouseY, pmouseX,pmouseY)){
-                    stroke.select();
-                    selectedStrokes.addMember(stroke);
-                    reDraw();
-                    break;
-                }
-            }
+            if (selectedGameObj==null) selectStrokesFrom(allStrokes);
+            else selectStrokesFrom(selectedGameObj.getStrokes().getMembers());
         }
 
         //dragging: create box
@@ -101,22 +95,23 @@ void penUp(){
     //     }
     // }
 
+    if (translating){//just finished translating strokes
+        if(selectedGameObj!=null) selectedGameObj.updateStrokes();
+    }
+
     //DRAW: save finished stroke
-    if (mode==Mode.PEN){
+    else if (mode==Mode.PEN){
        Stroke finishedStroke = new Stroke(currentColour, currentStroke);
         allStrokes.add(finishedStroke); //add stroke
+        if (selectedGameObj!=null) selectedGameObj.addStroke(finishedStroke);
         reDraw();
     }
 
     //BOXSELECT: select all strokes whose **BBs** fall within created box
     //(should change this later to be more precise than BBs)
     else if (mode==Mode.BOXSELECT){
-        for (Stroke s: allStrokes){
-            if (!s.isSelected()&&s.boundsIntersectRect(min(sx1,sx2), min(sy1,sy2), max(sx1,sx2), max(sy1,sy2))){
-                s.select();
-                selectedStrokes.addMember(s);
-            }
-        }
+        if (selectedGameObj==null) boxSelectFrom(allStrokes);
+        else boxSelectFrom(selectedGameObj.getStrokes().getMembers());
         reDraw();
     }
 
@@ -137,5 +132,25 @@ void penHover(){
             cursor(ARROW);
             translating = false;
         } 
+    }
+}
+
+void selectStrokesFrom(ArrayList<Stroke> strokes){
+    for (Stroke stroke: strokes){
+        if (!stroke.isSelected()&&stroke.intersects(mouseX, mouseY, pmouseX,pmouseY)){
+            stroke.select();
+            selectedStrokes.addMember(stroke);
+            reDraw();
+            break;
+        }
+    }
+}
+
+void boxSelectFrom(ArrayList<Stroke> strokes){
+    for (Stroke s: strokes){
+        if (!s.isSelected()&&s.boundsIntersectRect(min(sx1,sx2), min(sy1,sy2), max(sx1,sx2), max(sy1,sy2))){
+            s.select();
+            selectedStrokes.addMember(s);
+        }
     }
 }

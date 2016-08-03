@@ -14,9 +14,10 @@ class GameObj{
   PVector gamePosition; //position in gameplay mode
   PVector paintPosition; //position in editing mode
   CheckBox ui; //attribute editor ui
+  Button selectBtn; //used to select object for editing
 
   //some attribute bools
-  boolean pickup, visible, slippery, bouncy, isInWorld;
+  boolean pickup, visible, slippery, bouncy, isInWorld, selected;
 
 	GameObj(int i, StrokeGroup sg, FWorld world, ControlP5 cp5){
     id = i;
@@ -32,6 +33,7 @@ class GameObj{
     slippery = false;
     bouncy = false;
     isInWorld = true;
+    selected = false;
     setupRaster();
     setupMenu(Integer.toString(id), cp5);
     world.add(body);
@@ -47,6 +49,18 @@ class GameObj{
         isInWorld = false;
       }
     }
+  }
+
+  public void addStroke(Stroke s){
+    strokes.addMember(s);
+    gamePosition = new PVector(strokes.getLeft(), strokes.getTop());
+    w = strokes.getRight() - strokes.getLeft();
+    h = strokes.getBottom() - strokes.getTop();
+    raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
+    paintPosition = new PVector(gamePosition.x, gamePosition.y);
+    newBody(ui.getState(2)); //should probably use a bool
+    setupRaster();
+    reDraw();
   }
 
   //draw vector strokes onto raster sprite
@@ -119,15 +133,19 @@ class GameObj{
 
   public void setExact(boolean state){
     if ((state&&(body instanceof FPoly))||(!state)&&(body instanceof FCompound)){ 
+      newBody(state);
+    }
+  }
+
+  public void newBody(boolean isExact){
       world.remove(body);
-      FBody newBody = setupBody(state);
+      FBody newBody = setupBody(isExact);
       newBody.setStatic(body.isStatic());
       newBody.setSensor(body.isSensor());
       body = newBody;
       setSlippery(slippery);
       setBouncy(bouncy);
       world.add(body);
-    }
   }
 
   public void setPickup(boolean state){
@@ -148,7 +166,12 @@ class GameObj{
 
     //setup attributes menu
   void setupMenu(String id, ControlP5 cp5){
-    Group menu = cp5.addGroup(id).setBackgroundColor(color(0, 64));
+    Group menu = cp5.addGroup("attributes_"+id).setBackgroundColor(color(0, 64))
+    .setPosition(paintPosition.x+77, paintPosition.y+h+20)
+    .setHeight(20)
+    .setWidth(75)
+    .close();
+
     ui = cp5.addCheckBox("checkbox"+id)
    .setPosition(0,0)
    .setItemWidth(20)
@@ -159,13 +182,13 @@ class GameObj{
    .addItem("pickup_"+id, 4)
    .addItem("bouncy_"+id, 5)
    .addItem("slippery_"+id, 6)
-   .setColorLabel(color(255))
+   .setColorLabel(color(0))
    .moveTo(menu);
-    cp5.addAccordion("acc"+id)
-    .setPosition(gamePosition.x, gamePosition.y+h)
-    .setWidth(100)
-    .setHeight(50)
-    .addItem(menu);
+
+   selectBtn = cp5.addButton("select_"+id)
+      .setPosition(paintPosition.x,paintPosition.y+h)
+      .setHeight(20)
+      .setWidth(75);
   }
 
   public void updateAttributes(){
@@ -175,6 +198,10 @@ class GameObj{
     setPickup(ui.getState(3));
     setBouncy(ui.getState(4));
     setSlippery(ui.getState(5));
+  }
+
+  public void updateStrokes(){
+
   }
 
   //for switching between paint and play mode-- restart play
@@ -198,12 +225,30 @@ class GameObj{
     return ui;
   }
 
+  public Button getSelectBtn(){
+    return selectBtn;
+  }
+
   public void hideUI(){
     ui.getParent().hide();
+    selectBtn.hide();
   }
 
   public void showUI(){
     ui.getParent().show();
+    selectBtn.show();
+  }
+
+  public void select(){
+    selected = true;
+  }
+
+  public void deselect(){
+    selected = false;
+  }
+
+  public boolean isSelected(){
+    return selected;
   }
 
 }
