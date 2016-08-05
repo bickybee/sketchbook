@@ -1,15 +1,16 @@
 import fisica.*;
 
 //Game object class
+//Keeps stroke and game data
 class GameObj{
 
   //padding required to account for stroke width
   static final float RASTER_PADDING = 2f;
 
-	StrokeGroup strokes; //vector stroke group
-  PGraphics raster; //raster of vector strokes, for rendering efficiency during gameplay
+	StrokeGroup strokeGroup; //vector stroke group
+  PGraphics raster; //raster of vector strokeGroup, for rendering efficiency during gameplay
   FBody body; //physics body
-  int id; //id of gameObj
+  int id;
   float w, h;
   PVector gamePosition; //position in gameplay mode
   PVector paintPosition; //position in editing mode
@@ -21,13 +22,18 @@ class GameObj{
 
 	GameObj(int i, StrokeGroup sg, FWorld world, ControlP5 cp5){
     id = i;
-    strokes = sg;
-    gamePosition = new PVector(strokes.getLeft(), strokes.getTop());
-    w = strokes.getRight() - strokes.getLeft();
-    h = strokes.getBottom() - strokes.getTop();
+    strokeGroup = sg;
+
+    //label strokes as belonging to this game object
+    for (Stroke s: strokeGroup.getMembers()) s.addToGameObj(id, this);
+
+    gamePosition = new PVector(strokeGroup.getLeft(), strokeGroup.getTop());
+    w = strokeGroup.getRight() - strokeGroup.getLeft();
+    h = strokeGroup.getBottom() - strokeGroup.getTop();
     raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
     body = setupBody(false);
     paintPosition = new PVector(gamePosition.x, gamePosition.y);
+
     pickup = false;
     visible = true;
     slippery = false;
@@ -36,7 +42,7 @@ class GameObj{
     selected = false;
     setupRaster();
     setupMenu(Integer.toString(id), cp5);
-    world.add(body);
+
 	}
 
   //for each world.step, move raster gamePosition to body gamePosition
@@ -51,21 +57,37 @@ class GameObj{
     }
   }
 
+  public void removeStroke(Stroke s){
+    strokeGroup.removeMember(s);
+    if (strokeGroup.getSize()>0) recalculateStrokeDependentData();
+  }
+
   public void addStroke(Stroke s){
-    strokes.addMember(s);
-    gamePosition = new PVector(strokes.getLeft(), strokes.getTop());
-    w = strokes.getRight() - strokes.getLeft();
-    h = strokes.getBottom() - strokes.getTop();
+    strokeGroup.addMember(s);
+    recalculateStrokeDependentData();
+  }
+
+  public void updateStrokes(){
+    strokeGroup.update();
+    recalculateStrokeDependentData();
+  }
+
+  //when messing with the strokes in the strokegroup, we need to update geometry accordingly
+  void recalculateStrokeDependentData(){
+    gamePosition = new PVector(strokeGroup.getLeft(), strokeGroup.getTop());
+    w = strokeGroup.getRight() - strokeGroup.getLeft();
+    h = strokeGroup.getBottom() - strokeGroup.getTop();
     raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
     paintPosition = new PVector(gamePosition.x, gamePosition.y);
     newBody(ui.getState(2)); //should probably use a bool
     setupRaster();
-    reDraw();
+    ui.getParent().setPosition(paintPosition.x+77, paintPosition.y+h+20);
+    selectBtn.setPosition(paintPosition.x, paintPosition.y+h);
   }
 
-  //draw vector strokes onto raster sprite
+  //draw vector strokeGroup onto raster sprite
   public void setupRaster(){
-    for (Stroke s: strokes.getMembers()){
+    for (Stroke s: strokeGroup.getMembers()){
       s.draw(raster, gamePosition, RASTER_PADDING/2);
     }
   }
@@ -87,14 +109,14 @@ class GameObj{
 //use giftwrap algorithm to create convex body FPoly
   public FPoly createHull(){
     GiftWrap wrapper = new GiftWrap();
-    Point[] input = strokes.getKeyPoints().toArray(new Point[strokes.getKeyPointsSize()]);
+    Point[] input = strokeGroup.getKeyPoints().toArray(new Point[strokeGroup.getKeyPointsSize()]);
     return wrapper.generate(input);
   }
 
-  //string together the points to make a big line body
+  //string together key points to make a big line body
   public FCompound createLineCompound(boolean isJumpThrough){
       FCompound lines = new FCompound();
-      for (Stroke s: strokes.getMembers()){
+      for (Stroke s: strokeGroup.getMembers()){
         for (int i = 1; i < s.keyPoints.length; i++){
           lines.addBody(new FLine(s.keyPoints[i-1].getX(), s.keyPoints[i-1].getY(),s.keyPoints[i].getX(), s.keyPoints[i].getY()));
         }
@@ -118,7 +140,7 @@ class GameObj{
   //not in use currently...
   public void translate(float dx, float dy){
       gamePosition.add(dx,dy);
-      //strokes.translate(dx, dy); //body moves with stroke points!!!!!!
+      //strokeGroup.translate(dx, dy); //body moves with stroke points!!!!!!
   }
 
   public void setStatic(boolean state){
@@ -137,6 +159,10 @@ class GameObj{
     }
   }
 
+  public void keyHandler(int key){
+
+  }
+
   public void newBody(boolean isExact){
       world.remove(body);
       FBody newBody = setupBody(isExact);
@@ -145,7 +171,6 @@ class GameObj{
       body = newBody;
       setSlippery(slippery);
       setBouncy(bouncy);
-      world.add(body);
   }
 
   public void setPickup(boolean state){
@@ -200,10 +225,6 @@ class GameObj{
     setSlippery(ui.getState(5));
   }
 
-  public void updateStrokes(){
-
-  }
-
   //for switching between paint and play mode-- restart play
   public void revert(){
     body.recreateInWorld();
@@ -218,7 +239,7 @@ class GameObj{
 
 
   public StrokeGroup getStrokes(){
-    return strokes;
+    return strokeGroup;
   }
 
   public CheckBox getUI(){
@@ -249,6 +270,10 @@ class GameObj{
 
   public boolean isSelected(){
     return selected;
+  }
+
+  public int getID(){
+    return id;
   }
 
 }

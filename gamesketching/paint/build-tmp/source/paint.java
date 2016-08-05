@@ -98,6 +98,7 @@ public void setup() {
     world.setEdges();
 
     playing = false;
+    currentID = 0;
 
     //controlP5 setup
     gui = new ControlP5(this);
@@ -186,7 +187,8 @@ public void undo(int val){
 //create game object handler
 public void gameObj(int val){
     if (selectedStrokes.getSize() != 0){
-        gameObjs.add(new GameObj(currentID++, selectedStrokes, world, gui)); //create entity
+        gameObjs.add(new GameObj(currentID, selectedStrokes, world, gui)); //create entity
+        currentID++;
         deselectStrokes();
         reDraw();
     } 
@@ -197,13 +199,22 @@ public void mode(int val){
     switch(val){
         case(1):
             playing = false;
-            for (GameObj obj: gameObjs) obj.showUI();
+            for (GameObj obj: gameObjs){
+                obj.showUI();
+                world.remove(obj.getBody());
+                world.step();
+            }
             restartGame();
             reDraw();
            break;
         case(2):
             playing = true;
-            for (GameObj obj: gameObjs) obj.hideUI();
+            for (GameObj obj: gameObjs){
+                obj.hideUI();
+                world.add(obj.getBody());
+                world.step();
+            }
+
             reDraw();
             break;
         default:
@@ -268,14 +279,17 @@ public void controlEvent(ControlEvent event){
             obj.updateAttributes();
         }
         else if (event.isFrom(obj.getSelectBtn())){
+
             if (selectedGameObj==obj){
                 selectedGameObj.deselect();
+                reDraw();
                 selectedGameObj = null;
             }
             else {
                 if (selectedGameObj!=null) selectedGameObj.deselect();
                 selectedGameObj = obj;
                 obj.select();
+                reDraw();
             }
             print("selected \n");
         }
@@ -311,7 +325,9 @@ class GameObj{
 
 	GameObj(int i, StrokeGroup sg, FWorld world, ControlP5 cp5){
     id = i;
+    print(id);
     strokes = sg;
+    for (Stroke s: strokes.getMembers()) s.addToGameObj(id, this);
     gamePosition = new PVector(strokes.getLeft(), strokes.getTop());
     w = strokes.getRight() - strokes.getLeft();
     h = strokes.getBottom() - strokes.getTop();
@@ -326,7 +342,7 @@ class GameObj{
     selected = false;
     setupRaster();
     setupMenu(Integer.toString(id), cp5);
-    world.add(body);
+
 	}
 
   //for each world.step, move raster gamePosition to body gamePosition
@@ -341,8 +357,22 @@ class GameObj{
     }
   }
 
+  public void removeStroke(Stroke s){
+    strokes.removeMember(s);
+    if (strokes.getSize()>0) recalculateStrokeDependentData();
+  }
+
   public void addStroke(Stroke s){
     strokes.addMember(s);
+    recalculateStrokeDependentData();
+  }
+
+  public void updateStrokes(){
+    strokes.update();
+    recalculateStrokeDependentData();
+  }
+
+  public void recalculateStrokeDependentData(){
     gamePosition = new PVector(strokes.getLeft(), strokes.getTop());
     w = strokes.getRight() - strokes.getLeft();
     h = strokes.getBottom() - strokes.getTop();
@@ -350,7 +380,8 @@ class GameObj{
     paintPosition = new PVector(gamePosition.x, gamePosition.y);
     newBody(ui.getState(2)); //should probably use a bool
     setupRaster();
-    reDraw();
+    ui.getParent().setPosition(paintPosition.x+77, paintPosition.y+h+20);
+    selectBtn.setPosition(paintPosition.x, paintPosition.y+h);
   }
 
   //draw vector strokes onto raster sprite
@@ -435,7 +466,6 @@ class GameObj{
       body = newBody;
       setSlippery(slippery);
       setBouncy(bouncy);
-      world.add(body);
   }
 
   public void setPickup(boolean state){
@@ -490,10 +520,6 @@ class GameObj{
     setSlippery(ui.getState(5));
   }
 
-  public void updateStrokes(){
-
-  }
-
   //for switching between paint and play mode-- restart play
   public void revert(){
     body.recreateInWorld();
@@ -539,6 +565,10 @@ class GameObj{
 
   public boolean isSelected(){
     return selected;
+  }
+
+  public int getID(){
+    return id;
   }
 
 }
@@ -746,8 +776,28 @@ public void penDown(){
     //ERASE: remove strokes that intersect pen
     if (mode==Mode.ERASE || (tablet.getPenKind()==Tablet.ERASER && mode==Mode.PEN)){       
         for (Stroke stroke: allStrokes){
+            //if erasing line intersects stroke, remove it from list of strokes
             if (stroke.intersects(mouseX, mouseY, pmouseX, pmouseY)){
                 allStrokes.remove(stroke);
+                //if the stroke belongs to a game object, remove it from the obj
+                if (stroke.belongsToGameObj()){
+                    for (GameObj o: gameObjs){
+                        if (stroke.getGameObjID()==o.getID()){
+                            o.removeStroke(stroke);
+                            if (o.getStrokes().getSize()==0){ //if there are no more strokes left in the obj, remove it
+                                o.hideUI();
+                                gameObjs.remove(o);
+                            }  
+
+                            break;
+                        }
+                    }
+                    // GameObj containsThisStroke = stroke.getGameObj();
+                    // containsThisStroke.removeStroke(stroke);
+                    // if (containsThisStroke.getStrokes().getSize()==0) gameObjs.remove(containsThisStroke);
+                    // break;
+
+                } 
                 reDraw();
                 break;
             }
@@ -777,7 +827,10 @@ public void penDown(){
     else if (mode==Mode.SELECT||mode==Mode.BOXSELECT){
         
         //if eraser is put down, erase current selection
-        if (tablet.getPenKind()==Tablet.ERASER) eraseSelection();
+        if (tablet.getPenKind()==Tablet.ERASER){
+            eraseSelection();
+            reDraw();
+        }
 
         //translate: move selection along with pen
         else if (translating){
@@ -838,6 +891,7 @@ public void penUp(){
 
     if (translating){//just finished translating strokes
         if(selectedGameObj!=null) selectedGameObj.updateStrokes();
+        reDraw();
     }
 
     //DRAW: save finished stroke
@@ -960,6 +1014,7 @@ class Stroke{
     boolean selected;
     boolean belongsToObj;
     int gameObjId;
+    GameObj gameObj;
     //fix this >>>
     private PointExtractor<Point> strokePointExtractor = new PointExtractor<Point>() {
             @Override
@@ -1260,9 +1315,23 @@ class Stroke{
         selected = false;
     }
 
-    public void addToGameObj(int id){
+    public void addToGameObj(int id, GameObj o){
+        gameObj = o;
         gameObjId = id;
         belongsToObj = true;
+    }
+
+    public boolean belongsToGameObj(){
+        return belongsToObj;
+    }
+
+    public int getGameObjID(){
+        if (belongsToObj) return gameObjId;
+        else return -1;
+    }
+
+    public GameObj getGameObj(){
+        return gameObj;
     }
 }
 
@@ -1307,8 +1376,41 @@ class StrokeGroup{
         if (s.bottom > bottom) bottom = s.bottom;
 	}
 
-	public void recalculateBounds(){
-		
+	public void removeMember(Stroke stroke){
+		members.remove(stroke);
+		size--;
+		//recalculate key points & bounding box
+		top = Float.MAX_VALUE;
+        bottom = 0;
+        left = Float.MAX_VALUE;
+        right = 0;
+        keyPointsSize = 0;
+		allKeyPoints = new ArrayList<Point>();
+		for (Stroke s: members){
+			keyPointsSize += s.keyPoints.length;
+			Collections.addAll(allKeyPoints, s.keyPoints);
+			if (s.left < left) left = s.left;
+	        if (s.right > right) right = s.right;
+	        if (s.top < top) top = s.top;
+	        if (s.bottom > bottom) bottom = s.bottom;
+		}
+	}
+
+	public void update(){
+		top = Float.MAX_VALUE;
+        bottom = 0;
+        left = Float.MAX_VALUE;
+        right = 0;
+        keyPointsSize = 0;
+		allKeyPoints = new ArrayList<Point>();
+		for (Stroke s: members){
+			keyPointsSize += s.keyPoints.length;
+			Collections.addAll(allKeyPoints, s.keyPoints);
+			if (s.left < left) left = s.left;
+	        if (s.right > right) right = s.right;
+	        if (s.top < top) top = s.top;
+	        if (s.bottom > bottom) bottom = s.bottom;
+		}
 	}
 
 	public boolean boundsContain(float x, float y){

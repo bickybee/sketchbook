@@ -5,8 +5,28 @@ void penDown(){
     //ERASE: remove strokes that intersect pen
     if (mode==Mode.ERASE || (tablet.getPenKind()==Tablet.ERASER && mode==Mode.PEN)){       
         for (Stroke stroke: allStrokes){
+            //if erasing line intersects stroke, remove it from list of strokes
             if (stroke.intersects(mouseX, mouseY, pmouseX, pmouseY)){
                 allStrokes.remove(stroke);
+                //if the stroke belongs to a game object, remove it from the obj
+                if (stroke.belongsToGameObj()){
+                    for (GameObj o: gameObjs){
+                        if (stroke.getGameObjID()==o.getID()){
+                            o.removeStroke(stroke);
+                            if (o.getStrokes().getSize()==0){ //if there are no more strokes left in the obj, remove it
+                                o.hideUI();
+                                gameObjs.remove(o);
+                            }  
+
+                            break;
+                        }
+                    }
+                    // GameObj containsThisStroke = stroke.getGameObj();
+                    // containsThisStroke.removeStroke(stroke);
+                    // if (containsThisStroke.getStrokes().getSize()==0) gameObjs.remove(containsThisStroke);
+                    // break;
+
+                } 
                 reDraw();
                 break;
             }
@@ -36,7 +56,10 @@ void penDown(){
     else if (mode==Mode.SELECT||mode==Mode.BOXSELECT){
         
         //if eraser is put down, erase current selection
-        if (tablet.getPenKind()==Tablet.ERASER) eraseSelection();
+        if (tablet.getPenKind()==Tablet.ERASER){
+            eraseSelection();
+            reDraw();
+        }
 
         //translate: move selection along with pen
         else if (translating){
@@ -94,11 +117,6 @@ void penUp(){
     //         print("deselected \n");
     //     }
     // }
-
-    if (translating){//just finished translating strokes
-        if(selectedGameObj!=null) selectedGameObj.updateStrokes();
-    }
-
     //DRAW: save finished stroke
     else if (mode==Mode.PEN){
        Stroke finishedStroke = new Stroke(currentColour, currentStroke);

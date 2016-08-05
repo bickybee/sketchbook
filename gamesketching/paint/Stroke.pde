@@ -20,6 +20,7 @@ class Stroke{
     boolean selected;
     boolean belongsToObj;
     int gameObjId;
+    GameObj gameObj;
     //fix this >>>
     private PointExtractor<Point> strokePointExtractor = new PointExtractor<Point>() {
             @Override
@@ -320,8 +321,22 @@ class Stroke{
         selected = false;
     }
 
-    void addToGameObj(int id){
+    void addToGameObj(int id, GameObj o){
+        gameObj = o;
         gameObjId = id;
         belongsToObj = true;
+    }
+
+    public boolean belongsToGameObj(){
+        return belongsToObj;
+    }
+
+    public int getGameObjID(){
+        if (belongsToObj) return gameObjId;
+        else return -1;
+    }
+
+    public GameObj getGameObj(){
+        return gameObj;
     }
 }

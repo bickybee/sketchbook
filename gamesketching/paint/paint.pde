@@ -18,10 +18,10 @@ Mode mode;
 boolean translating;
 boolean penIsDown;
 float penSpeed;
-//
+//offsets for translation
 float xOffset;
 float yOffset;
-//
+//points for building selection-square
 float sx1, sy1, sx2, sy2;
 
 //GUI stuff 
@@ -34,21 +34,20 @@ Button playBtn;
 RadioButton penRadio;
 RadioButton colourRadio;
 RadioButton modeRadio;
-boolean playing;
+boolean playing; //play mode vs. paint mode
 
 //GAME STUFF!!!!!!!
 ArrayList<GameObj> gameObjs;
 int currentID;
 GameObj selectedGameObj;
 FWorld world;
-boolean up, down, left, right;
+boolean up, down, left, right; //keys
 
 
-//any initialization goes here
 void setup() {
     fullScreen(2); 
 
-    //
+    //INITIALIZING EVERTHING
     tablet = new Tablet(this);
     bg = color(255);
     currentColour = color(0,0,0);
@@ -67,8 +66,9 @@ void setup() {
     world.setEdges();
 
     playing = false;
+    currentID = 0;
 
-    //controlP5 setup
+    //controlP5 initializations
     gui = new ControlP5(this);
 
     undoBtn = gui.addButton("undo")
@@ -127,11 +127,16 @@ void setup() {
 //drawing loop
 void draw() {
 
+    //if in play mode, step through world every frame
+    //update game objects accordingly
+    //redraw
     if (playing){
         world.step();
         for (GameObj obj: gameObjs) obj.update();
         reDraw();
     }
+    //if in paint mode,
+    //use appropriate pen handler depending on pen mode
     else {
 
         if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
@@ -145,17 +150,18 @@ void draw() {
 
 }
 
-//undo stroke handler
+//undo stroke button handler
 public void undo(int val){
     if (allStrokes.size() != 0){
             undoStroke();
     }
 }
 
-//create game object handler
+//create game object button handler
 public void gameObj(int val){
     if (selectedStrokes.getSize() != 0){
-        gameObjs.add(new GameObj(currentID++, selectedStrokes, world, gui)); //create entity
+        gameObjs.add(new GameObj(currentID, selectedStrokes, world, gui)); //create entity
+        currentID++;
         deselectStrokes();
         reDraw();
     } 
@@ -164,15 +170,30 @@ public void gameObj(int val){
 //play vs. draw mode, radio handler
 public void mode(int val){
     switch(val){
+        //paint mode
         case(1):
             playing = false;
-            for (GameObj obj: gameObjs) obj.showUI();
+            //remove game objects from game world
+            //show their editing menus
+            for (GameObj obj: gameObjs){
+                obj.showUI();
+                world.remove(obj.getBody());
+                world.step();
+            }
             restartGame();
             reDraw();
            break;
+        //play mode
         case(2):
             playing = true;
-            for (GameObj obj: gameObjs) obj.hideUI();
+            //add game objects to game world
+            //hide their editing menus
+            for (GameObj obj: gameObjs){
+                obj.hideUI();
+                world.add(obj.getBody());
+                world.step();
+            }
+
             reDraw();
             break;
         default:
@@ -219,9 +240,13 @@ public void pens(int val){
         }
 }
 
+//pen colour radio handler
 public void colour(int val){
+    
     currentColour = val;
     stroke(currentColour);
+
+    //if some strokes are selected, set them to the selected colour
     if (selectedStrokes.getMembers().size()!=0){
         for (Stroke s: selectedStrokes.getMembers()){
             s.setColour(currentColour);
@@ -232,10 +257,16 @@ public void colour(int val){
 
 //game object editing menu handler
 public void controlEvent(ControlEvent event){
+    //check if any game object's interfaces cased the event
     for (GameObj obj: gameObjs){
+
+        //if it's from the attribute menu, update accordingly
         if (event.isFrom(obj.getUI())){
             obj.updateAttributes();
         }
+
+        //if it's from the select button, select/deselect objects accordingly
+        //(since only one obj may be selected at a time)
         else if (event.isFrom(obj.getSelectBtn())){
 
             if (selectedGameObj==obj){

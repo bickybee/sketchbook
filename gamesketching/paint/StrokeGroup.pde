@@ -40,8 +40,41 @@ class StrokeGroup{
         if (s.bottom > bottom) bottom = s.bottom;
 	}
 
-	void recalculateBounds(){
-		
+	void removeMember(Stroke stroke){
+		members.remove(stroke);
+		size--;
+		//recalculate key points & bounding box
+		top = Float.MAX_VALUE;
+        bottom = 0;
+        left = Float.MAX_VALUE;
+        right = 0;
+        keyPointsSize = 0;
+		allKeyPoints = new ArrayList<Point>();
+		for (Stroke s: members){
+			keyPointsSize += s.keyPoints.length;
+			Collections.addAll(allKeyPoints, s.keyPoints);
+			if (s.left < left) left = s.left;
+	        if (s.right > right) right = s.right;
+	        if (s.top < top) top = s.top;
+	        if (s.bottom > bottom) bottom = s.bottom;
+		}
+	}
+
+	void update(){
+		top = Float.MAX_VALUE;
+        bottom = 0;
+        left = Float.MAX_VALUE;
+        right = 0;
+        keyPointsSize = 0;
+		allKeyPoints = new ArrayList<Point>();
+		for (Stroke s: members){
+			keyPointsSize += s.keyPoints.length;
+			Collections.addAll(allKeyPoints, s.keyPoints);
+			if (s.left < left) left = s.left;
+	        if (s.right > right) right = s.right;
+	        if (s.top < top) top = s.top;
+	        if (s.bottom > bottom) bottom = s.bottom;
+		}
 	}
 
 	boolean boundsContain(float x, float y){
