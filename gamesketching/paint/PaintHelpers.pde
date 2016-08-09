@@ -4,7 +4,6 @@
 //redraw everything
 void reDraw(){
     background(bg);
-    world.draw();
     if (playing) drawAllGameObjs();
     else{
         for (GameObj obj: gameObjs){

@@ -3,6 +3,7 @@ import codeanticode.tablet.*;
 import controlP5.*;
 import java.awt.geom.*;
 import fisica.*;
+import java.lang.reflect.*;
 
 
 //canvas stuff
@@ -42,10 +43,7 @@ ArrayList<GameObj> gameObjs;
 int currentID;
 GameObj selectedGameObj;
 FWorld world;
-boolean up, down, left, right; //keys
-Dictionary asciiKeys;
-Dictionary codedKeys;
-
+KeyPublisher[] keys;
 
 void setup() {
     fullScreen(2); 
@@ -62,8 +60,10 @@ void setup() {
     mode = Mode.PEN;
     translating = false;
     //
-    asciiKeys = new HashMap<Integer, Boolean>();
-    codedKeys = new HashMap<KeyEvent, Boolean>();
+    keys = new KeyPublisher[200]; //corresponds to each key, ascii up to 127 and with an offset of 127 for coded keys
+    for (int i = 0; i < keys.length; i++){
+        keys[i] = new KeyPublisher(i);
+    }
     gameObjs = new ArrayList<GameObj>();
     Fisica.init(this);
     world = new FWorld();
@@ -170,7 +170,9 @@ public void undo(int val){
 //create game object button handler
 public void gameObj(int val){
     if (selectedStrokes.getSize() != 0){
-        gameObjs.add(new GameObj(currentID, selectedStrokes, world, gui)); //create entity
+        GameObj newObj = new GameObj(currentID, selectedStrokes, world, gui); //create entity
+        gameObjs.add(newObj);
+        keys['a'].addSubscriber(newObj, "testMethod");
         currentID++;
         deselectStrokes();
         reDraw();
@@ -267,7 +269,7 @@ public void colour(int val){
 
 public void gravity(int val){
     if (world!= null){
-        if (gravityTog.getBooleanValue()) world.setGravity(0,100ubscr);
+        if (gravityTog.getBooleanValue()) world.setGravity(0,100);
         else world.setGravity(0,0);
     }
     
@@ -281,6 +283,19 @@ public void controlEvent(ControlEvent event){
         //if it's from the attribute menu, update accordingly
         if (event.isFrom(obj.getUI())){
             obj.updateAttributes();
+            //TESTING KEY BINDINGS FOR CONTROL
+            if (obj.getUI().getState(6)){
+                keys[127+UP].addSubscriber(obj, "moveUp");
+                keys[127+DOWN].addSubscriber(obj, "moveDown");
+                keys[127+LEFT].addSubscriber(obj, "moveLeft");
+                keys[127+RIGHT].addSubscriber(obj, "moveRight");
+            }
+            else {
+                keys[127+UP].removeSubscriber(obj);
+                keys[127+DOWN].removeSubscriber(obj);
+                keys[127+LEFT].removeSubscriber(obj);
+                keys[127+RIGHT].removeSubscriber(obj);                
+            }
         }
 
         //if it's from the select button, select/deselect objects accordingly
@@ -302,13 +317,22 @@ public void controlEvent(ControlEvent event){
         }
     }
 }
-
-public void keyPressed(){
+public void setKeyState(boolean isPushed){
     if (key==CODED){
-        codedKeys[keyCode] = !codedKeys[keyCode];
-        //notify(keyCode);
+        try {
+            keys[keyCode+127].set(isPushed);
+        } catch (IndexOutOfBoundsException e) {
+            print("Key not supported \n");
+        }
     }
     else {
-        asciiKeys[key] = !asciiKeys[key];
+        keys[key].set(isPushed);
     }
+}
+public void keyPressed(){
+    setKeyState(true);
+}
+
+public void keyReleased(){
+    setKeyState(false);
 }

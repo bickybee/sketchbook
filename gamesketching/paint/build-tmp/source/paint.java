@@ -8,8 +8,10 @@ import codeanticode.tablet.*;
 import controlP5.*; 
 import java.awt.geom.*; 
 import fisica.*; 
+import java.lang.reflect.*; 
 import fisica.*; 
 import java.util.List; 
+import java.lang.reflect.*; 
 import org.dyn4j.*; 
 import org.dyn4j.geometry.*; 
 import org.dyn4j.geometry.decompose.*; 
@@ -36,6 +38,7 @@ public class paint extends PApplet {
 
 
 
+
 //canvas stuff
 Tablet tablet;
 ArrayList<Point> currentStroke;
@@ -49,10 +52,10 @@ Mode mode;
 boolean translating;
 boolean penIsDown;
 float penSpeed;
-//
+//offsets for translation
 float xOffset;
 float yOffset;
-//
+//points for building selection-square
 float sx1, sy1, sx2, sy2;
 
 //GUI stuff 
@@ -65,21 +68,20 @@ Button playBtn;
 RadioButton penRadio;
 RadioButton colourRadio;
 RadioButton modeRadio;
-boolean playing;
+Toggle gravityTog;
+boolean playing; //play mode vs. paint mode
 
 //GAME STUFF!!!!!!!
 ArrayList<GameObj> gameObjs;
 int currentID;
 GameObj selectedGameObj;
 FWorld world;
-boolean up, down, left, right;
+KeyPublisher[] keys;
 
-
-//any initialization goes here
 public void setup() {
      
 
-    //
+    //INITIALIZING EVERTHING
     tablet = new Tablet(this);
     bg = color(255);
     currentColour = color(0,0,0);
@@ -91,6 +93,10 @@ public void setup() {
     mode = Mode.PEN;
     translating = false;
     //
+    keys = new KeyPublisher[200]; //corresponds to each key, ascii up to 127 and with an offset of 127 for coded keys
+    for (int i = 0; i < keys.length; i++){
+        keys[i] = new KeyPublisher(i);
+    }
     gameObjs = new ArrayList<GameObj>();
     Fisica.init(this);
     world = new FWorld();
@@ -100,7 +106,7 @@ public void setup() {
     playing = false;
     currentID = 0;
 
-    //controlP5 setup
+    //controlP5 initializations
     gui = new ControlP5(this);
 
     undoBtn = gui.addButton("undo")
@@ -153,17 +159,27 @@ public void setup() {
                 .addItem("play",2);
     modeRadio.getItem("draw").setState(true);
 
+    gravityTog = gui.addToggle("gravity")
+        .setLabel("gravity")
+        .setPosition(0,buttonH*12+40)
+        .setSize(buttonW, buttonH);
+
     background(bg);
 }
 
 //drawing loop
 public void draw() {
 
+    //if in play mode, step through world every frame
+    //update game objects accordingly
+    //redraw
     if (playing){
         world.step();
         for (GameObj obj: gameObjs) obj.update();
         reDraw();
     }
+    //if in paint mode,
+    //use appropriate pen handler depending on pen mode
     else {
 
         if (tablet.isLeftDown()&&mouseX>buttonW) penDown();
@@ -177,17 +193,19 @@ public void draw() {
 
 }
 
-//undo stroke handler
+//undo stroke button handler
 public void undo(int val){
     if (allStrokes.size() != 0){
             undoStroke();
     }
 }
 
-//create game object handler
+//create game object button handler
 public void gameObj(int val){
     if (selectedStrokes.getSize() != 0){
-        gameObjs.add(new GameObj(currentID, selectedStrokes, world, gui)); //create entity
+        GameObj newObj = new GameObj(currentID, selectedStrokes, world, gui); //create entity
+        gameObjs.add(newObj);
+        keys['a'].addSubscriber(newObj, "testMethod");
         currentID++;
         deselectStrokes();
         reDraw();
@@ -197,8 +215,11 @@ public void gameObj(int val){
 //play vs. draw mode, radio handler
 public void mode(int val){
     switch(val){
+        //paint mode
         case(1):
             playing = false;
+            //remove game objects from game world
+            //show their editing menus
             for (GameObj obj: gameObjs){
                 obj.showUI();
                 world.remove(obj.getBody());
@@ -207,8 +228,11 @@ public void mode(int val){
             restartGame();
             reDraw();
            break;
+        //play mode
         case(2):
             playing = true;
+            //add game objects to game world
+            //hide their editing menus
             for (GameObj obj: gameObjs){
                 obj.hideUI();
                 world.add(obj.getBody());
@@ -261,9 +285,13 @@ public void pens(int val){
         }
 }
 
+//pen colour radio handler
 public void colour(int val){
+    
     currentColour = val;
     stroke(currentColour);
+
+    //if some strokes are selected, set them to the selected colour
     if (selectedStrokes.getMembers().size()!=0){
         for (Stroke s: selectedStrokes.getMembers()){
             s.setColour(currentColour);
@@ -272,12 +300,39 @@ public void colour(int val){
     }
 }
 
+public void gravity(int val){
+    if (world!= null){
+        if (gravityTog.getBooleanValue()) world.setGravity(0,100);
+        else world.setGravity(0,0);
+    }
+    
+}
+
 //game object editing menu handler
 public void controlEvent(ControlEvent event){
+    //check if any game object's interfaces cased the event
     for (GameObj obj: gameObjs){
+
+        //if it's from the attribute menu, update accordingly
         if (event.isFrom(obj.getUI())){
             obj.updateAttributes();
+            //TESTING KEY BINDINGS FOR CONTROL
+            if (obj.getUI().getState(6)){
+                keys[127+UP].addSubscriber(obj, "moveUp");
+                keys[127+DOWN].addSubscriber(obj, "moveDown");
+                keys[127+LEFT].addSubscriber(obj, "moveLeft");
+                keys[127+RIGHT].addSubscriber(obj, "moveRight");
+            }
+            else {
+                keys[127+UP].removeSubscriber(obj);
+                keys[127+DOWN].removeSubscriber(obj);
+                keys[127+LEFT].removeSubscriber(obj);
+                keys[127+RIGHT].removeSubscriber(obj);                
+            }
         }
+
+        //if it's from the select button, select/deselect objects accordingly
+        //(since only one obj may be selected at a time)
         else if (event.isFrom(obj.getSelectBtn())){
 
             if (selectedGameObj==obj){
@@ -295,6 +350,25 @@ public void controlEvent(ControlEvent event){
         }
     }
 }
+public void setKeyState(boolean isPushed){
+    if (key==CODED){
+        try {
+            keys[keyCode+127].set(isPushed);
+        } catch (IndexOutOfBoundsException e) {
+            print("Key not supported \n");
+        }
+    }
+    else {
+        keys[key].set(isPushed);
+    }
+}
+public void keyPressed(){
+    setKeyState(true);
+}
+
+public void keyReleased(){
+    setKeyState(false);
+}
 public void restartGame(){
 	for (GameObj obj: gameObjs){
 		obj.revert();
@@ -305,35 +379,41 @@ public void restartGame(){
 
 
 //Game object class
+//Keeps stroke and game data
 class GameObj{
 
   //padding required to account for stroke width
   static final float RASTER_PADDING = 2f;
 
-	StrokeGroup strokes; //vector stroke group
-  PGraphics raster; //raster of vector strokes, for rendering efficiency during gameplay
+	StrokeGroup strokeGroup; //vector stroke group
+  PGraphics raster; //raster of vector strokeGroup, for rendering efficiency during gameplay
   FBody body; //physics body
-  int id; //id of gameObj
+  int id;
   float w, h;
   PVector gamePosition; //position in gameplay mode
   PVector paintPosition; //position in editing mode
   CheckBox ui; //attribute editor ui
   Button selectBtn; //used to select object for editing
+  Method[] keyListeners;
 
   //some attribute bools
   boolean pickup, visible, slippery, bouncy, isInWorld, selected;
 
 	GameObj(int i, StrokeGroup sg, FWorld world, ControlP5 cp5){
     id = i;
-    print(id);
-    strokes = sg;
-    for (Stroke s: strokes.getMembers()) s.addToGameObj(id, this);
-    gamePosition = new PVector(strokes.getLeft(), strokes.getTop());
-    w = strokes.getRight() - strokes.getLeft();
-    h = strokes.getBottom() - strokes.getTop();
+    strokeGroup = sg;
+
+    //label strokes as belonging to this game object
+    for (Stroke s: strokeGroup.getMembers()) s.addToGameObj(id, this);
+    keyListeners = new Method[200];
+
+    gamePosition = new PVector(strokeGroup.getLeft(), strokeGroup.getTop());
+    w = strokeGroup.getRight() - strokeGroup.getLeft();
+    h = strokeGroup.getBottom() - strokeGroup.getTop();
     raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
     body = setupBody(false);
     paintPosition = new PVector(gamePosition.x, gamePosition.y);
+
     pickup = false;
     visible = true;
     slippery = false;
@@ -358,24 +438,25 @@ class GameObj{
   }
 
   public void removeStroke(Stroke s){
-    strokes.removeMember(s);
-    if (strokes.getSize()>0) recalculateStrokeDependentData();
+    strokeGroup.removeMember(s);
+    if (strokeGroup.getSize()>0) recalculateStrokeDependentData();
   }
 
   public void addStroke(Stroke s){
-    strokes.addMember(s);
+    strokeGroup.addMember(s);
     recalculateStrokeDependentData();
   }
 
   public void updateStrokes(){
-    strokes.update();
+    strokeGroup.update();
     recalculateStrokeDependentData();
   }
 
+  //when messing with the strokes in the strokegroup, we need to update geometry accordingly
   public void recalculateStrokeDependentData(){
-    gamePosition = new PVector(strokes.getLeft(), strokes.getTop());
-    w = strokes.getRight() - strokes.getLeft();
-    h = strokes.getBottom() - strokes.getTop();
+    gamePosition = new PVector(strokeGroup.getLeft(), strokeGroup.getTop());
+    w = strokeGroup.getRight() - strokeGroup.getLeft();
+    h = strokeGroup.getBottom() - strokeGroup.getTop();
     raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
     paintPosition = new PVector(gamePosition.x, gamePosition.y);
     newBody(ui.getState(2)); //should probably use a bool
@@ -384,9 +465,9 @@ class GameObj{
     selectBtn.setPosition(paintPosition.x, paintPosition.y+h);
   }
 
-  //draw vector strokes onto raster sprite
+  //draw vector strokeGroup onto raster sprite
   public void setupRaster(){
-    for (Stroke s: strokes.getMembers()){
+    for (Stroke s: strokeGroup.getMembers()){
       s.draw(raster, gamePosition, RASTER_PADDING/2);
     }
   }
@@ -408,14 +489,14 @@ class GameObj{
 //use giftwrap algorithm to create convex body FPoly
   public FPoly createHull(){
     GiftWrap wrapper = new GiftWrap();
-    Point[] input = strokes.getKeyPoints().toArray(new Point[strokes.getKeyPointsSize()]);
+    Point[] input = strokeGroup.getKeyPoints().toArray(new Point[strokeGroup.getKeyPointsSize()]);
     return wrapper.generate(input);
   }
 
-  //string together the points to make a big line body
+  //string together key points to make a big line body
   public FCompound createLineCompound(boolean isJumpThrough){
       FCompound lines = new FCompound();
-      for (Stroke s: strokes.getMembers()){
+      for (Stroke s: strokeGroup.getMembers()){
         for (int i = 1; i < s.keyPoints.length; i++){
           lines.addBody(new FLine(s.keyPoints[i-1].getX(), s.keyPoints[i-1].getY(),s.keyPoints[i].getX(), s.keyPoints[i].getY()));
         }
@@ -439,17 +520,15 @@ class GameObj{
   //not in use currently...
   public void translate(float dx, float dy){
       gamePosition.add(dx,dy);
-      //strokes.translate(dx, dy); //body moves with stroke points!!!!!!
+      //strokeGroup.translate(dx, dy); //body moves with stroke points!!!!!!
   }
 
   public void setStatic(boolean state){
     if (state!=body.isStatic()) body.setStatic(state);
-    print("static "+body.isStatic()+"\n");
   }
 
   public void setSolid(boolean state){
     if (state!=body.isSensor()) body.setSensor(state);
-    print("sensor "+body.isSensor()+"\n");
   }
 
   public void setExact(boolean state){
@@ -484,6 +563,26 @@ class GameObj{
     else body.setFriction(100);
   }
 
+  public void moveUp(boolean move){
+    if (move&&(body.getVelocityY()!=-500)) body.setVelocity(body.getVelocityX(),-500);
+    else body.setVelocity(body.getVelocityX(), 0);
+  }
+
+  public void moveDown(boolean move){
+    if (move&&(body.getVelocityY()!=500)) body.setVelocity(body.getVelocityX(),500);
+    else body.setVelocity(body.getVelocityX(), 0);
+  }
+
+  public void moveRight(boolean move){
+    if (move&&(body.getVelocityX()!=500)) body.setVelocity(500,body.getVelocityY());
+    else body.setVelocity(0, body.getVelocityY());
+  }
+
+  public void moveLeft(boolean move){
+    if (move&&(body.getVelocityX()!=-500)) body.setVelocity(-500,body.getVelocityY());
+    else body.setVelocity(0, body.getVelocityY());
+  }
+
     //setup attributes menu
   public void setupMenu(String id, ControlP5 cp5){
     Group menu = cp5.addGroup("attributes_"+id).setBackgroundColor(color(0, 64))
@@ -502,6 +601,7 @@ class GameObj{
    .addItem("pickup_"+id, 4)
    .addItem("bouncy_"+id, 5)
    .addItem("slippery_"+id, 6)
+   .addItem("controllable_"+id, 7)
    .setColorLabel(color(0))
    .moveTo(menu);
 
@@ -528,13 +628,39 @@ class GameObj{
     update();
   }
 
+  public void testMethod(boolean keyPushed){
+    if (keyPushed) print("method invoked true \n");
+    else print("method invoked false \n");
+  }
+
+  public void bindMethodToKey(Method method, int keyVal){
+    keyListeners[keyVal] = method;
+  }
+
+  public void removeKeyBinding(int keyVal){
+    keyListeners[keyVal] = null;
+  }
+
+  //receive notifications from keys
+  public void notify(boolean isPushed, int keyVal){
+    if (keyListeners[keyVal]!=null){
+      try {
+        keyListeners[keyVal].invoke(this, isPushed);
+      } catch (Exception e){
+        print(e+" from GameObj notify \n");
+      }
+    }
+  }
+
+///////////////////////////////////////////////////////
+
   public FBody getBody(){
     return body;
   }
 
 
   public StrokeGroup getStrokes(){
-    return strokes;
+    return strokeGroup;
   }
 
   public CheckBox getUI(){
@@ -676,13 +802,59 @@ class GiftWrap{
 			  (point.getX() - linePoint1.getX()) * (linePoint2.getY() - linePoint1.getY());
 	}
 }
+//key listener/publisher (where GameObjs are the subscribers)
+
+
+public class KeyPublisher{
+
+	ArrayList<GameObj> subscribers;
+	boolean isPushed;
+	int keyValue;
+
+	KeyPublisher(int val){
+		keyValue = val;
+		isPushed = false;
+		subscribers = new ArrayList<GameObj>();
+
+	}
+
+	public void set(boolean pushed){
+			isPushed = pushed;
+			notifySubscribers();		
+	}
+
+	public void addSubscriber(GameObj obj, String methodName){
+		if (!subscribers.contains(obj)){
+			try {
+				Method method = obj.getClass().getMethod(methodName, boolean.class);
+				print(keyValue);
+				obj.bindMethodToKey(method, keyValue);
+				subscribers.add(obj);
+				print("subscribed to "+keyValue+"\n");
+			} catch (Exception e) {
+				print(e+" from addSubsriber \n");
+			}
+		}
+	}
+
+	public void removeSubscriber(GameObj obj){
+		subscribers.remove(obj);
+		obj.removeKeyBinding(keyValue);
+	}
+
+	private void notifySubscribers(){
+		for (GameObj obj : subscribers){
+			obj.notify(isPushed, keyValue);
+		}
+	}
+
+}
 
 // paint helper functions
 
 //redraw everything
 public void reDraw(){
     background(bg);
-    world.draw();
     if (playing) drawAllGameObjs();
     else{
         for (GameObj obj: gameObjs){
@@ -888,14 +1060,8 @@ public void penUp(){
     //         print("deselected \n");
     //     }
     // }
-
-    if (translating){//just finished translating strokes
-        if(selectedGameObj!=null) selectedGameObj.updateStrokes();
-        reDraw();
-    }
-
     //DRAW: save finished stroke
-    else if (mode==Mode.PEN){
+    if (mode==Mode.PEN){
        Stroke finishedStroke = new Stroke(currentColour, currentStroke);
         allStrokes.add(finishedStroke); //add stroke
         if (selectedGameObj!=null) selectedGameObj.addStroke(finishedStroke);

@@ -16,6 +16,7 @@ class GameObj{
   PVector paintPosition; //position in editing mode
   CheckBox ui; //attribute editor ui
   Button selectBtn; //used to select object for editing
+  Method[] keyListeners;
 
   //some attribute bools
   boolean pickup, visible, slippery, bouncy, isInWorld, selected;
@@ -26,6 +27,7 @@ class GameObj{
 
     //label strokes as belonging to this game object
     for (Stroke s: strokeGroup.getMembers()) s.addToGameObj(id, this);
+    keyListeners = new Method[200];
 
     gamePosition = new PVector(strokeGroup.getLeft(), strokeGroup.getTop());
     w = strokeGroup.getRight() - strokeGroup.getLeft();
@@ -145,22 +147,16 @@ class GameObj{
 
   public void setStatic(boolean state){
     if (state!=body.isStatic()) body.setStatic(state);
-    print("static "+body.isStatic()+"\n");
   }
 
   public void setSolid(boolean state){
     if (state!=body.isSensor()) body.setSensor(state);
-    print("sensor "+body.isSensor()+"\n");
   }
 
   public void setExact(boolean state){
     if ((state&&(body instanceof FPoly))||(!state)&&(body instanceof FCompound)){ 
       newBody(state);
     }
-  }
-
-  public void keyHandler(int key){
-
   }
 
   public void newBody(boolean isExact){
@@ -189,6 +185,26 @@ class GameObj{
     else body.setFriction(100);
   }
 
+  public void moveUp(boolean move){
+    if (move&&(body.getVelocityY()!=-500)) body.setVelocity(body.getVelocityX(),-500);
+    else body.setVelocity(body.getVelocityX(), 0);
+  }
+
+  public void moveDown(boolean move){
+    if (move&&(body.getVelocityY()!=500)) body.setVelocity(body.getVelocityX(),500);
+    else body.setVelocity(body.getVelocityX(), 0);
+  }
+
+  public void moveRight(boolean move){
+    if (move&&(body.getVelocityX()!=500)) body.setVelocity(500,body.getVelocityY());
+    else body.setVelocity(0, body.getVelocityY());
+  }
+
+  public void moveLeft(boolean move){
+    if (move&&(body.getVelocityX()!=-500)) body.setVelocity(-500,body.getVelocityY());
+    else body.setVelocity(0, body.getVelocityY());
+  }
+
     //setup attributes menu
   void setupMenu(String id, ControlP5 cp5){
     Group menu = cp5.addGroup("attributes_"+id).setBackgroundColor(color(0, 64))
@@ -207,6 +223,7 @@ class GameObj{
    .addItem("pickup_"+id, 4)
    .addItem("bouncy_"+id, 5)
    .addItem("slippery_"+id, 6)
+   .addItem("controllable_"+id, 7)
    .setColorLabel(color(0))
    .moveTo(menu);
 
@@ -232,6 +249,32 @@ class GameObj{
     body.setPosition(0,0);
     update();
   }
+
+  public void testMethod(boolean keyPushed){
+    if (keyPushed) print("method invoked true \n");
+    else print("method invoked false \n");
+  }
+
+  public void bindMethodToKey(Method method, int keyVal){
+    keyListeners[keyVal] = method;
+  }
+
+  public void removeKeyBinding(int keyVal){
+    keyListeners[keyVal] = null;
+  }
+
+  //receive notifications from keys
+  public void notify(boolean isPushed, int keyVal){
+    if (keyListeners[keyVal]!=null){
+      try {
+        keyListeners[keyVal].invoke(this, isPushed);
+      } catch (Exception e){
+        print(e+" from GameObj notify \n");
+      }
+    }
+  }
+
+///////////////////////////////////////////////////////
 
   public FBody getBody(){
     return body;
