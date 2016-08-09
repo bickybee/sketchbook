@@ -118,7 +118,7 @@ void penUp(){
     //     }
     // }
     //DRAW: save finished stroke
-    else if (mode==Mode.PEN){
+    if (mode==Mode.PEN){
        Stroke finishedStroke = new Stroke(currentColour, currentStroke);
         allStrokes.add(finishedStroke); //add stroke
         if (selectedGameObj!=null) selectedGameObj.addStroke(finishedStroke);

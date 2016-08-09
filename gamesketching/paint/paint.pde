@@ -34,6 +34,7 @@ Button playBtn;
 RadioButton penRadio;
 RadioButton colourRadio;
 RadioButton modeRadio;
+Toggle gravityTog;
 boolean playing; //play mode vs. paint mode
 
 //GAME STUFF!!!!!!!
@@ -42,6 +43,8 @@ int currentID;
 GameObj selectedGameObj;
 FWorld world;
 boolean up, down, left, right; //keys
+Dictionary asciiKeys;
+Dictionary codedKeys;
 
 
 void setup() {
@@ -59,6 +62,8 @@ void setup() {
     mode = Mode.PEN;
     translating = false;
     //
+    asciiKeys = new HashMap<Integer, Boolean>();
+    codedKeys = new HashMap<KeyEvent, Boolean>();
     gameObjs = new ArrayList<GameObj>();
     Fisica.init(this);
     world = new FWorld();
@@ -120,6 +125,11 @@ void setup() {
                 .addItem("draw",1)
                 .addItem("play",2);
     modeRadio.getItem("draw").setState(true);
+
+    gravityTog = gui.addToggle("gravity")
+        .setLabel("gravity")
+        .setPosition(0,buttonH*12+40)
+        .setSize(buttonW, buttonH);
 
     background(bg);
 }
@@ -255,6 +265,14 @@ public void colour(int val){
     }
 }
 
+public void gravity(int val){
+    if (world!= null){
+        if (gravityTog.getBooleanValue()) world.setGravity(0,100ubscr);
+        else world.setGravity(0,0);
+    }
+    
+}
+
 //game object editing menu handler
 public void controlEvent(ControlEvent event){
     //check if any game object's interfaces cased the event
@@ -282,5 +300,15 @@ public void controlEvent(ControlEvent event){
             }
             print("selected \n");
         }
+    }
+}
+
+public void keyPressed(){
+    if (key==CODED){
+        codedKeys[keyCode] = !codedKeys[keyCode];
+        //notify(keyCode);
+    }
+    else {
+        asciiKeys[key] = !asciiKeys[key];
     }
 }
