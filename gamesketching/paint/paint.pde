@@ -9,7 +9,7 @@ import java.lang.reflect.*;
 //canvas stuff
 Tablet tablet;
 ArrayList<Point> currentStroke;
-ArrayList<Stroke> allStrokes;
+StrokeGroup canvasStrokes;
 color currentColour;
 color bg;
 StrokeGroup selectedStrokes;
@@ -53,7 +53,7 @@ void setup() {
     bg = color(255);
     currentColour = color(0,0,0);
     currentStroke = new ArrayList<Point>();
-    allStrokes = new ArrayList<Stroke>();
+    canvasStrokes = new StrokeGroup();
     selectedStrokes = new StrokeGroup();
     //
     penIsDown = false;
@@ -67,7 +67,7 @@ void setup() {
     gameObjs = new ArrayList<GameObj>();
     Fisica.init(this);
     world = new FWorld();
-    world.setGravity(0, 800);
+    world.setGravity(0, 0);
     world.setEdges();
 
     playing = false;
@@ -128,6 +128,7 @@ void setup() {
 
     gravityTog = gui.addToggle("gravity")
         .setLabel("gravity")
+        .setColorLabel(color(0))
         .setPosition(0,buttonH*12+40)
         .setSize(buttonW, buttonH);
 
@@ -162,7 +163,7 @@ void draw() {
 
 //undo stroke button handler
 public void undo(int val){
-    if (allStrokes.size() != 0){
+    if (canvasStrokes.getSize() != 0){
             undoStroke();
     }
 }
@@ -174,6 +175,9 @@ public void gameObj(int val){
         gameObjs.add(newObj);
         keys['a'].addSubscriber(newObj, "testMethod");
         currentID++;
+        for (Stroke s : selectedStrokes.getMembers()){
+            canvasStrokes.removeMember(s);
+        }
         deselectStrokes();
         reDraw();
     } 
@@ -269,7 +273,7 @@ public void colour(int val){
 
 public void gravity(int val){
     if (world!= null){
-        if (gravityTog.getBooleanValue()) world.setGravity(0,100);
+        if (gravityTog.getBooleanValue()) world.setGravity(0,800);
         else world.setGravity(0,0);
     }
     
@@ -283,12 +287,14 @@ public void controlEvent(ControlEvent event){
         //if it's from the attribute menu, update accordingly
         if (event.isFrom(obj.getUI())){
             obj.updateAttributes();
+
             //TESTING KEY BINDINGS FOR CONTROL
             if (obj.getUI().getState(6)){
                 keys[127+UP].addSubscriber(obj, "moveUp");
                 keys[127+DOWN].addSubscriber(obj, "moveDown");
                 keys[127+LEFT].addSubscriber(obj, "moveLeft");
                 keys[127+RIGHT].addSubscriber(obj, "moveRight");
+                obj.getBody().setDensity(500); // "kinematic" body lol
             }
             else {
                 keys[127+UP].removeSubscriber(obj);
@@ -296,6 +302,7 @@ public void controlEvent(ControlEvent event){
                 keys[127+LEFT].removeSubscriber(obj);
                 keys[127+RIGHT].removeSubscriber(obj);                
             }
+            
         }
 
         //if it's from the select button, select/deselect objects accordingly

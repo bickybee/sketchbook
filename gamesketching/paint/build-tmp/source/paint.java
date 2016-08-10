@@ -42,7 +42,7 @@ public class paint extends PApplet {
 //canvas stuff
 Tablet tablet;
 ArrayList<Point> currentStroke;
-ArrayList<Stroke> allStrokes;
+StrokeGroup canvasStrokes;
 int currentColour;
 int bg;
 StrokeGroup selectedStrokes;
@@ -86,7 +86,7 @@ public void setup() {
     bg = color(255);
     currentColour = color(0,0,0);
     currentStroke = new ArrayList<Point>();
-    allStrokes = new ArrayList<Stroke>();
+    canvasStrokes = new StrokeGroup();
     selectedStrokes = new StrokeGroup();
     //
     penIsDown = false;
@@ -100,7 +100,7 @@ public void setup() {
     gameObjs = new ArrayList<GameObj>();
     Fisica.init(this);
     world = new FWorld();
-    world.setGravity(0, 800);
+    world.setGravity(0, 0);
     world.setEdges();
 
     playing = false;
@@ -161,6 +161,7 @@ public void setup() {
 
     gravityTog = gui.addToggle("gravity")
         .setLabel("gravity")
+        .setColorLabel(color(0))
         .setPosition(0,buttonH*12+40)
         .setSize(buttonW, buttonH);
 
@@ -195,7 +196,7 @@ public void draw() {
 
 //undo stroke button handler
 public void undo(int val){
-    if (allStrokes.size() != 0){
+    if (canvasStrokes.getSize() != 0){
             undoStroke();
     }
 }
@@ -207,6 +208,9 @@ public void gameObj(int val){
         gameObjs.add(newObj);
         keys['a'].addSubscriber(newObj, "testMethod");
         currentID++;
+        for (Stroke s : selectedStrokes.getMembers()){
+            canvasStrokes.removeMember(s);
+        }
         deselectStrokes();
         reDraw();
     } 
@@ -302,7 +306,7 @@ public void colour(int val){
 
 public void gravity(int val){
     if (world!= null){
-        if (gravityTog.getBooleanValue()) world.setGravity(0,100);
+        if (gravityTog.getBooleanValue()) world.setGravity(0,800);
         else world.setGravity(0,0);
     }
     
@@ -316,12 +320,14 @@ public void controlEvent(ControlEvent event){
         //if it's from the attribute menu, update accordingly
         if (event.isFrom(obj.getUI())){
             obj.updateAttributes();
+
             //TESTING KEY BINDINGS FOR CONTROL
             if (obj.getUI().getState(6)){
                 keys[127+UP].addSubscriber(obj, "moveUp");
                 keys[127+DOWN].addSubscriber(obj, "moveDown");
                 keys[127+LEFT].addSubscriber(obj, "moveLeft");
                 keys[127+RIGHT].addSubscriber(obj, "moveRight");
+                obj.getBody().setDensity(500); // "kinematic" body lol
             }
             else {
                 keys[127+UP].removeSubscriber(obj);
@@ -329,6 +335,7 @@ public void controlEvent(ControlEvent event){
                 keys[127+LEFT].removeSubscriber(obj);
                 keys[127+RIGHT].removeSubscriber(obj);                
             }
+            
         }
 
         //if it's from the select button, select/deselect objects accordingly
@@ -425,6 +432,10 @@ class GameObj{
 
 	}
 
+///////////////////////////////////////////////
+// drawing
+//////////////////////////////////////////////
+
   //for each world.step, move raster gamePosition to body gamePosition
   public void update(){
     gamePosition.x = body.getX()+paintPosition.x;
@@ -437,12 +448,30 @@ class GameObj{
     }
   }
 
+  //draw the sprite where the body is
+  public void draw(){
+    if (visible&&isInWorld) image(raster,gamePosition.x, gamePosition.y);
+  }
+
+  //draw vector strokeGroup onto raster sprite
+  public void setupRaster(){
+    for (Stroke s: strokeGroup.getMembers()){
+      s.draw(raster, gamePosition, RASTER_PADDING/2);
+    }
+  }
+
+///////////////////////////////////////////////
+// stroke editing
+//////////////////////////////////////////////
+
   public void removeStroke(Stroke s){
+    s.removeFromGameObj();
     strokeGroup.removeMember(s);
     if (strokeGroup.getSize()>0) recalculateStrokeDependentData();
   }
 
   public void addStroke(Stroke s){
+    s.addToGameObj(id, this);
     strokeGroup.addMember(s);
     recalculateStrokeDependentData();
   }
@@ -465,12 +494,9 @@ class GameObj{
     selectBtn.setPosition(paintPosition.x, paintPosition.y+h);
   }
 
-  //draw vector strokeGroup onto raster sprite
-  public void setupRaster(){
-    for (Stroke s: strokeGroup.getMembers()){
-      s.draw(raster, gamePosition, RASTER_PADDING/2);
-    }
-  }
+///////////////////////////////////////////////
+// physics body creation/updating
+//////////////////////////////////////////////
 
   //setup physics body for gameobj
   //if isExact, use the precise points to create the body as a series of lines
@@ -483,6 +509,7 @@ class GameObj{
     b.setRotatable(false);
     b.setRestitution(0);
     b.setFriction(100);
+    b.setDamping(0);
     return b;
   }
 
@@ -500,28 +527,24 @@ class GameObj{
         for (int i = 1; i < s.keyPoints.length; i++){
           lines.addBody(new FLine(s.keyPoints[i-1].getX(), s.keyPoints[i-1].getY(),s.keyPoints[i].getX(), s.keyPoints[i].getY()));
         }
-        //for some reason collision is only detected one way, so here's how to get two way:
-        //NVM things just get stuck :-(
-        // if (!isJumpThrough){
-        //   for (int i = s.keyPoints.length-1; i >= 1; i--){
-        //     lines.addBody(new FLine(s.keyPoints[i].getX(), s.keyPoints[i].getY(),s.keyPoints[i-1].getX(), s.keyPoints[i-1].getY()));
-        //   }
-        // }
       }
       return lines;
   }
 
-
-  //draw the sprite where the body is
-  public void draw(){
-    if (visible&&isInWorld) image(raster,gamePosition.x, gamePosition.y);
+  public void newBody(boolean isExact){
+      world.remove(body);
+      FBody newBody = setupBody(isExact);
+      newBody.setStatic(body.isStatic());
+      newBody.setSensor(body.isSensor());
+      body = newBody;
+      setSlippery(slippery);
+      setBouncy(bouncy);
   }
 
-  //not in use currently...
-  public void translate(float dx, float dy){
-      gamePosition.add(dx,dy);
-      //strokeGroup.translate(dx, dy); //body moves with stroke points!!!!!!
-  }
+
+///////////////////////////////////////////////
+// setting attributes
+//////////////////////////////////////////////
 
   public void setStatic(boolean state){
     if (state!=body.isStatic()) body.setStatic(state);
@@ -535,16 +558,6 @@ class GameObj{
     if ((state&&(body instanceof FPoly))||(!state)&&(body instanceof FCompound)){ 
       newBody(state);
     }
-  }
-
-  public void newBody(boolean isExact){
-      world.remove(body);
-      FBody newBody = setupBody(isExact);
-      newBody.setStatic(body.isStatic());
-      newBody.setSensor(body.isSensor());
-      body = newBody;
-      setSlippery(slippery);
-      setBouncy(bouncy);
   }
 
   public void setPickup(boolean state){
@@ -563,25 +576,33 @@ class GameObj{
     else body.setFriction(100);
   }
 
+///////////////////////////////////////////////
+// behaviours
+//////////////////////////////////////////////
+
   public void moveUp(boolean move){
-    if (move&&(body.getVelocityY()!=-500)) body.setVelocity(body.getVelocityX(),-500);
+    if (move) body.setVelocity(body.getVelocityX(),-500);
     else body.setVelocity(body.getVelocityX(), 0);
   }
 
   public void moveDown(boolean move){
-    if (move&&(body.getVelocityY()!=500)) body.setVelocity(body.getVelocityX(),500);
+    if (move) body.setVelocity(body.getVelocityX(),500);
     else body.setVelocity(body.getVelocityX(), 0);
   }
 
   public void moveRight(boolean move){
-    if (move&&(body.getVelocityX()!=500)) body.setVelocity(500,body.getVelocityY());
+    if (move) body.setVelocity(500,body.getVelocityY());
     else body.setVelocity(0, body.getVelocityY());
   }
 
   public void moveLeft(boolean move){
-    if (move&&(body.getVelocityX()!=-500)) body.setVelocity(-500,body.getVelocityY());
+    if (move) body.setVelocity(-500,body.getVelocityY());
     else body.setVelocity(0, body.getVelocityY());
   }
+
+///////////////////////////////////////////////
+// menu setup/listeners
+//////////////////////////////////////////////
 
     //setup attributes menu
   public void setupMenu(String id, ControlP5 cp5){
@@ -605,7 +626,7 @@ class GameObj{
    .setColorLabel(color(0))
    .moveTo(menu);
 
-   selectBtn = cp5.addButton("select_"+id)
+   selectBtn = cp5.addButton("edit_strokes_"+id)
       .setPosition(paintPosition.x,paintPosition.y+h)
       .setHeight(20)
       .setWidth(75);
@@ -627,6 +648,10 @@ class GameObj{
     body.setPosition(0,0);
     update();
   }
+
+///////////////////////////////////////////////
+// key listening
+//////////////////////////////////////////////
 
   public void testMethod(boolean keyPushed){
     if (keyPushed) print("method invoked true \n");
@@ -652,7 +677,9 @@ class GameObj{
     }
   }
 
-///////////////////////////////////////////////////////
+///////////////////////////////////////////////
+// getters and setters
+//////////////////////////////////////////////
 
   public FBody getBody(){
     return body;
@@ -819,8 +846,10 @@ public class KeyPublisher{
 	}
 
 	public void set(boolean pushed){
+		if (isPushed != pushed){
 			isPushed = pushed;
-			notifySubscribers();		
+			notifySubscribers();	
+		}	
 	}
 
 	public void addSubscriber(GameObj obj, String methodName){
@@ -888,8 +917,11 @@ public void drawAllStrokes(){
     for (Stroke selected: selectedStrokes.getMembers()){
         selected.drawSelected();
     }
-    for (Stroke stroke: allStrokes){
+    for (Stroke stroke: canvasStrokes.getMembers()){
         stroke.draw();
+    }
+    for (GameObj obj : gameObjs){
+        obj.getStrokes().draw();
     }
 }
 
@@ -909,14 +941,15 @@ public void drawBox(float x1, float y1, float x2, float y2){
 
 //undo last drawn stroke
 public void undoStroke(){
-    allStrokes.remove(allStrokes.size()-1);
+    //FIX THIS GROSS LINE
+    canvasStrokes.removeMember(canvasStrokes.getMembers().get(canvasStrokes.getSize()-1));
     reDraw();
 }
 
 //erase current selection
 public void eraseSelection(){
     for (Stroke s: selectedStrokes.getMembers()){
-        allStrokes.remove(s); //presumably slow, but it works
+        canvasStrokes.removeMember(s); //presumably slow, but it works
     }
     selectedStrokes = new StrokeGroup();
     reDraw();
@@ -924,7 +957,7 @@ public void eraseSelection(){
 
 //unselect current selection
 public void deselectStrokes(){
-    for (Stroke s: allStrokes){
+    for (Stroke s: canvasStrokes.getMembers()){
         if (s.isSelected()) s.deselect();
     }
     selectedStrokes = new StrokeGroup();
@@ -946,34 +979,9 @@ public void drawPolygon(Polygon p){
 public void penDown(){
 
     //ERASE: remove strokes that intersect pen
-    if (mode==Mode.ERASE || (tablet.getPenKind()==Tablet.ERASER && mode==Mode.PEN)){       
-        for (Stroke stroke: allStrokes){
-            //if erasing line intersects stroke, remove it from list of strokes
-            if (stroke.intersects(mouseX, mouseY, pmouseX, pmouseY)){
-                allStrokes.remove(stroke);
-                //if the stroke belongs to a game object, remove it from the obj
-                if (stroke.belongsToGameObj()){
-                    for (GameObj o: gameObjs){
-                        if (stroke.getGameObjID()==o.getID()){
-                            o.removeStroke(stroke);
-                            if (o.getStrokes().getSize()==0){ //if there are no more strokes left in the obj, remove it
-                                o.hideUI();
-                                gameObjs.remove(o);
-                            }  
-
-                            break;
-                        }
-                    }
-                    // GameObj containsThisStroke = stroke.getGameObj();
-                    // containsThisStroke.removeStroke(stroke);
-                    // if (containsThisStroke.getStrokes().getSize()==0) gameObjs.remove(containsThisStroke);
-                    // break;
-
-                } 
-                reDraw();
-                break;
-            }
-        }
+    if (mode==Mode.ERASE || (tablet.getPenKind()==Tablet.ERASER && mode==Mode.PEN)){    
+        if (selectedGameObj==null) eraseFrom(canvasStrokes);
+        else eraseFrom(selectedGameObj.getStrokes());   
     }
 
     //DRAW: create strokes!
@@ -1006,6 +1014,7 @@ public void penDown(){
 
         //translate: move selection along with pen
         else if (translating){
+            penIsDown = true;
             xOffset = mouseX-pmouseX;
             yOffset = mouseY-pmouseY;
             selectedStrokes.translate(xOffset, yOffset);
@@ -1025,8 +1034,8 @@ public void penDown(){
 
         //dragging: check for strokes that intersect and select them
         else if (mode==Mode.SELECT){
-            if (selectedGameObj==null) selectStrokesFrom(allStrokes);
-            else selectStrokesFrom(selectedGameObj.getStrokes().getMembers());
+            if (selectedGameObj==null) selectStrokesFrom(canvasStrokes);
+            else selectStrokesFrom(selectedGameObj.getStrokes());
         }
 
         //dragging: create box
@@ -1042,37 +1051,24 @@ public void penDown(){
 }
 
 public void penUp(){
+    if (translating&&(selectedGameObj!=null)){
+        selectedGameObj.updateStrokes();
+        reDraw();
+    }
 
-    //if TAP (regardless of mode)
-    // if ((mouseX==pmouseX)&&(mouseY==pmouseY)){
-    //     print("tapped \n");
-    //     if(selectedGameObj==null){
-    //         for (GameObj obj: entities){ // if the tap is within an GameObj's bounding box
-    //             if (obj.getStrokes().boundsContain(mouseX, mouseY)){
-    //                 print("selected \n");
-    //                 selectedGameObj = obj;
-    //                 break; 
-    //             }
-    //         }
-    //     }
-    //     else if(selectedGameObj!=null){
-    //         selectedGameObj = null;
-    //         print("deselected \n");
-    //     }
-    // }
     //DRAW: save finished stroke
     if (mode==Mode.PEN){
        Stroke finishedStroke = new Stroke(currentColour, currentStroke);
-        allStrokes.add(finishedStroke); //add stroke
-        if (selectedGameObj!=null) selectedGameObj.addStroke(finishedStroke);
+        if (selectedGameObj==null) canvasStrokes.addMember(finishedStroke); //add stroke
+        else selectedGameObj.addStroke(finishedStroke);
         reDraw();
     }
 
     //BOXSELECT: select all strokes whose **BBs** fall within created box
     //(should change this later to be more precise than BBs)
     else if (mode==Mode.BOXSELECT){
-        if (selectedGameObj==null) boxSelectFrom(allStrokes);
-        else boxSelectFrom(selectedGameObj.getStrokes().getMembers());
+        if (selectedGameObj==null) boxSelectFrom(canvasStrokes);
+        else boxSelectFrom(selectedGameObj.getStrokes());
         reDraw();
     }
 
@@ -1096,25 +1092,53 @@ public void penHover(){
     }
 }
 
-public void selectStrokesFrom(ArrayList<Stroke> strokes){
-    for (Stroke stroke: strokes){
-        if (!stroke.isSelected()&&stroke.intersects(mouseX, mouseY, pmouseX,pmouseY)){
-            stroke.select();
-            selectedStrokes.addMember(stroke);
+public void eraseFrom(StrokeGroup strokes){
+    for (Stroke stroke: strokes.getMembers()){
+        //if erasing line intersects stroke, remove it from list of strokes
+        if (stroke.intersects(mouseX, mouseY, pmouseX, pmouseY)){
+            strokes.removeMember(stroke);
+            //if the stroke belongs to a game object, remove it from the obj
+            //FIX THIS LATER
+            if (stroke.belongsToGameObj()){
+                for (GameObj o: gameObjs){
+                    if (stroke.getGameObjID()==o.getID()){
+                        o.removeStroke(stroke);
+                        if (o.getStrokes().getSize()==0){ //if there are no more strokes left in the obj, remove it
+                            o.hideUI();
+                            gameObjs.remove(o);
+                        }  
+
+                        break;
+                    }
+                }
+            } 
             reDraw();
             break;
         }
     }
 }
 
-public void boxSelectFrom(ArrayList<Stroke> strokes){
-    for (Stroke s: strokes){
+public void selectStrokesFrom(StrokeGroup strokes){
+    for (Stroke stroke: strokes.getMembers()){
+        if (!stroke.isSelected()&&stroke.intersects(mouseX, mouseY, pmouseX,pmouseY)){
+            stroke.select();
+            selectedStrokes.addMember(stroke);
+            print("selected strokes: "+selectedStrokes.getSize()+"\n");
+            reDraw();
+            break;
+        }
+    }
+}
+
+public void boxSelectFrom(StrokeGroup strokes){
+    for (Stroke s: strokes.getMembers()){
         if (!s.isSelected()&&s.boundsIntersectRect(min(sx1,sx2), min(sy1,sy2), max(sx1,sx2), max(sy1,sy2))){
             s.select();
             selectedStrokes.addMember(s);
         }
     }
 }
+
 
 
 
@@ -1377,20 +1401,6 @@ class Stroke{
         return false;
     }
 
-    // //lol
-    // //give pen an AABB depending on SPEED!
-    // boolean intersectsPen(float x, float y, float speed){
-    //     rect(x-speed/2, y-speed/2, x+speed/2, y+speed/2);
-    //     for (int i=1; i<size; i++){
-    //         if (rectIntersectsLine(x-speed/2, y-speed/2, x+speed/2, y+speed/2,points[i].getX(),
-    //                 points[i].getY(), points[i-1].getX(), points[i-1].getY())){
-    //             return true;
-    //         }
-    //     }
-    //     return false;
-    // }
-
-
     public void translate(float xOff, float yOff){
         left += xOff;
         right += xOff;
@@ -1482,9 +1492,14 @@ class Stroke{
     }
 
     public void addToGameObj(int id, GameObj o){
+        selected = false;
         gameObj = o;
         gameObjId = id;
         belongsToObj = true;
+    }
+
+    public void removeFromGameObj(){
+        belongsToObj = false;
     }
 
     public boolean belongsToGameObj(){
@@ -1546,22 +1561,10 @@ class StrokeGroup{
 		members.remove(stroke);
 		size--;
 		//recalculate key points & bounding box
-		top = Float.MAX_VALUE;
-        bottom = 0;
-        left = Float.MAX_VALUE;
-        right = 0;
-        keyPointsSize = 0;
-		allKeyPoints = new ArrayList<Point>();
-		for (Stroke s: members){
-			keyPointsSize += s.keyPoints.length;
-			Collections.addAll(allKeyPoints, s.keyPoints);
-			if (s.left < left) left = s.left;
-	        if (s.right > right) right = s.right;
-	        if (s.top < top) top = s.top;
-	        if (s.bottom > bottom) bottom = s.bottom;
-		}
+		update();
 	}
 
+	//recalculate key points & bounding box
 	public void update(){
 		top = Float.MAX_VALUE;
         bottom = 0;
@@ -1626,16 +1629,6 @@ class StrokeGroup{
         return copy;
 	 }
 
-    // void decompose(){
-    // 	Vector2[] inputPoints = new Vector2[0];
-    // 	inputPoints = allKeyPoints.toArray(inputPoints);
-    // 	Bayazit decomposer = new Bayazit();
-    // 	List<Convex> convexShapes = new ArrayList<Convex>();
-    // 	convexShapes = decomposer.decompose(inputPoints);
-    // 	for (Convex shape: convexShapes){
-    // 		polygons.add((Polygon)shape);
-    // 	}
-    // }
 
 // --------------------------------------
 // GETTERS AND SETTERS

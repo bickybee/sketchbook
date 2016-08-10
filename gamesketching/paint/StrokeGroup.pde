@@ -44,22 +44,10 @@ class StrokeGroup{
 		members.remove(stroke);
 		size--;
 		//recalculate key points & bounding box
-		top = Float.MAX_VALUE;
-        bottom = 0;
-        left = Float.MAX_VALUE;
-        right = 0;
-        keyPointsSize = 0;
-		allKeyPoints = new ArrayList<Point>();
-		for (Stroke s: members){
-			keyPointsSize += s.keyPoints.length;
-			Collections.addAll(allKeyPoints, s.keyPoints);
-			if (s.left < left) left = s.left;
-	        if (s.right > right) right = s.right;
-	        if (s.top < top) top = s.top;
-	        if (s.bottom > bottom) bottom = s.bottom;
-		}
+		update();
 	}
 
+	//recalculate key points & bounding box
 	void update(){
 		top = Float.MAX_VALUE;
         bottom = 0;
@@ -124,16 +112,6 @@ class StrokeGroup{
         return copy;
 	 }
 
-    // void decompose(){
-    // 	Vector2[] inputPoints = new Vector2[0];
-    // 	inputPoints = allKeyPoints.toArray(inputPoints);
-    // 	Bayazit decomposer = new Bayazit();
-    // 	List<Convex> convexShapes = new ArrayList<Convex>();
-    // 	convexShapes = decomposer.decompose(inputPoints);
-    // 	for (Convex shape: convexShapes){
-    // 		polygons.add((Polygon)shape);
-    // 	}
-    // }
 
 // --------------------------------------
 // GETTERS AND SETTERS

@@ -15,8 +15,10 @@ public class KeyPublisher{
 	}
 
 	public void set(boolean pushed){
+		if (isPushed != pushed){
 			isPushed = pushed;
-			notifySubscribers();		
+			notifySubscribers();	
+		}	
 	}
 
 	public void addSubscriber(GameObj obj, String methodName){

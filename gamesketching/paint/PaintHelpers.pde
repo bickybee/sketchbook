@@ -37,8 +37,11 @@ void drawAllStrokes(){
     for (Stroke selected: selectedStrokes.getMembers()){
         selected.drawSelected();
     }
-    for (Stroke stroke: allStrokes){
+    for (Stroke stroke: canvasStrokes.getMembers()){
         stroke.draw();
+    }
+    for (GameObj obj : gameObjs){
+        obj.getStrokes().draw();
     }
 }
 
@@ -58,14 +61,15 @@ void drawBox(float x1, float y1, float x2, float y2){
 
 //undo last drawn stroke
 void undoStroke(){
-    allStrokes.remove(allStrokes.size()-1);
+    //FIX THIS GROSS LINE
+    canvasStrokes.removeMember(canvasStrokes.getMembers().get(canvasStrokes.getSize()-1));
     reDraw();
 }
 
 //erase current selection
 void eraseSelection(){
     for (Stroke s: selectedStrokes.getMembers()){
-        allStrokes.remove(s); //presumably slow, but it works
+        canvasStrokes.removeMember(s); //presumably slow, but it works
     }
     selectedStrokes = new StrokeGroup();
     reDraw();
@@ -73,7 +77,7 @@ void eraseSelection(){
 
 //unselect current selection
 void deselectStrokes(){
-    for (Stroke s: allStrokes){
+    for (Stroke s: canvasStrokes.getMembers()){
         if (s.isSelected()) s.deselect();
     }
     selectedStrokes = new StrokeGroup();

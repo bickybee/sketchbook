@@ -217,20 +217,6 @@ class Stroke{
         return false;
     }
 
-    // //lol
-    // //give pen an AABB depending on SPEED!
-    // boolean intersectsPen(float x, float y, float speed){
-    //     rect(x-speed/2, y-speed/2, x+speed/2, y+speed/2);
-    //     for (int i=1; i<size; i++){
-    //         if (rectIntersectsLine(x-speed/2, y-speed/2, x+speed/2, y+speed/2,points[i].getX(),
-    //                 points[i].getY(), points[i-1].getX(), points[i-1].getY())){
-    //             return true;
-    //         }
-    //     }
-    //     return false;
-    // }
-
-
     void translate(float xOff, float yOff){
         left += xOff;
         right += xOff;
@@ -322,9 +308,14 @@ class Stroke{
     }
 
     void addToGameObj(int id, GameObj o){
+        selected = false;
         gameObj = o;
         gameObjId = id;
         belongsToObj = true;
+    }
+
+    void removeFromGameObj(){
+        belongsToObj = false;
     }
 
     public boolean belongsToGameObj(){

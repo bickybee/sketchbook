@@ -47,6 +47,10 @@ class GameObj{
 
 	}
 
+///////////////////////////////////////////////
+// drawing
+//////////////////////////////////////////////
+
   //for each world.step, move raster gamePosition to body gamePosition
   public void update(){
     gamePosition.x = body.getX()+paintPosition.x;
@@ -59,12 +63,30 @@ class GameObj{
     }
   }
 
+  //draw the sprite where the body is
+  public void draw(){
+    if (visible&&isInWorld) image(raster,gamePosition.x, gamePosition.y);
+  }
+
+  //draw vector strokeGroup onto raster sprite
+  public void setupRaster(){
+    for (Stroke s: strokeGroup.getMembers()){
+      s.draw(raster, gamePosition, RASTER_PADDING/2);
+    }
+  }
+
+///////////////////////////////////////////////
+// stroke editing
+//////////////////////////////////////////////
+
   public void removeStroke(Stroke s){
+    s.removeFromGameObj();
     strokeGroup.removeMember(s);
     if (strokeGroup.getSize()>0) recalculateStrokeDependentData();
   }
 
   public void addStroke(Stroke s){
+    s.addToGameObj(id, this);
     strokeGroup.addMember(s);
     recalculateStrokeDependentData();
   }
@@ -87,12 +109,9 @@ class GameObj{
     selectBtn.setPosition(paintPosition.x, paintPosition.y+h);
   }
 
-  //draw vector strokeGroup onto raster sprite
-  public void setupRaster(){
-    for (Stroke s: strokeGroup.getMembers()){
-      s.draw(raster, gamePosition, RASTER_PADDING/2);
-    }
-  }
+///////////////////////////////////////////////
+// physics body creation/updating
+//////////////////////////////////////////////
 
   //setup physics body for gameobj
   //if isExact, use the precise points to create the body as a series of lines
@@ -105,6 +124,7 @@ class GameObj{
     b.setRotatable(false);
     b.setRestitution(0);
     b.setFriction(100);
+    b.setDamping(0);
     return b;
   }
 
@@ -122,28 +142,24 @@ class GameObj{
         for (int i = 1; i < s.keyPoints.length; i++){
           lines.addBody(new FLine(s.keyPoints[i-1].getX(), s.keyPoints[i-1].getY(),s.keyPoints[i].getX(), s.keyPoints[i].getY()));
         }
-        //for some reason collision is only detected one way, so here's how to get two way:
-        //NVM things just get stuck :-(
-        // if (!isJumpThrough){
-        //   for (int i = s.keyPoints.length-1; i >= 1; i--){
-        //     lines.addBody(new FLine(s.keyPoints[i].getX(), s.keyPoints[i].getY(),s.keyPoints[i-1].getX(), s.keyPoints[i-1].getY()));
-        //   }
-        // }
       }
       return lines;
   }
 
-
-  //draw the sprite where the body is
-  public void draw(){
-    if (visible&&isInWorld) image(raster,gamePosition.x, gamePosition.y);
+  public void newBody(boolean isExact){
+      world.remove(body);
+      FBody newBody = setupBody(isExact);
+      newBody.setStatic(body.isStatic());
+      newBody.setSensor(body.isSensor());
+      body = newBody;
+      setSlippery(slippery);
+      setBouncy(bouncy);
   }
 
-  //not in use currently...
-  public void translate(float dx, float dy){
-      gamePosition.add(dx,dy);
-      //strokeGroup.translate(dx, dy); //body moves with stroke points!!!!!!
-  }
+
+///////////////////////////////////////////////
+// setting attributes
+//////////////////////////////////////////////
 
   public void setStatic(boolean state){
     if (state!=body.isStatic()) body.setStatic(state);
@@ -157,16 +173,6 @@ class GameObj{
     if ((state&&(body instanceof FPoly))||(!state)&&(body instanceof FCompound)){ 
       newBody(state);
     }
-  }
-
-  public void newBody(boolean isExact){
-      world.remove(body);
-      FBody newBody = setupBody(isExact);
-      newBody.setStatic(body.isStatic());
-      newBody.setSensor(body.isSensor());
-      body = newBody;
-      setSlippery(slippery);
-      setBouncy(bouncy);
   }
 
   public void setPickup(boolean state){
@@ -185,25 +191,33 @@ class GameObj{
     else body.setFriction(100);
   }
 
+///////////////////////////////////////////////
+// behaviours
+//////////////////////////////////////////////
+
   public void moveUp(boolean move){
-    if (move&&(body.getVelocityY()!=-500)) body.setVelocity(body.getVelocityX(),-500);
+    if (move) body.setVelocity(body.getVelocityX(),-500);
     else body.setVelocity(body.getVelocityX(), 0);
   }
 
   public void moveDown(boolean move){
-    if (move&&(body.getVelocityY()!=500)) body.setVelocity(body.getVelocityX(),500);
+    if (move) body.setVelocity(body.getVelocityX(),500);
     else body.setVelocity(body.getVelocityX(), 0);
   }
 
   public void moveRight(boolean move){
-    if (move&&(body.getVelocityX()!=500)) body.setVelocity(500,body.getVelocityY());
+    if (move) body.setVelocity(500,body.getVelocityY());
     else body.setVelocity(0, body.getVelocityY());
   }
 
   public void moveLeft(boolean move){
-    if (move&&(body.getVelocityX()!=-500)) body.setVelocity(-500,body.getVelocityY());
+    if (move) body.setVelocity(-500,body.getVelocityY());
     else body.setVelocity(0, body.getVelocityY());
   }
+
+///////////////////////////////////////////////
+// menu setup/listeners
+//////////////////////////////////////////////
 
     //setup attributes menu
   void setupMenu(String id, ControlP5 cp5){
@@ -227,7 +241,7 @@ class GameObj{
    .setColorLabel(color(0))
    .moveTo(menu);
 
-   selectBtn = cp5.addButton("select_"+id)
+   selectBtn = cp5.addButton("edit_strokes_"+id)
       .setPosition(paintPosition.x,paintPosition.y+h)
       .setHeight(20)
       .setWidth(75);
@@ -249,6 +263,10 @@ class GameObj{
     body.setPosition(0,0);
     update();
   }
+
+///////////////////////////////////////////////
+// key listening
+//////////////////////////////////////////////
 
   public void testMethod(boolean keyPushed){
     if (keyPushed) print("method invoked true \n");
@@ -274,7 +292,9 @@ class GameObj{
     }
   }
 
-///////////////////////////////////////////////////////
+///////////////////////////////////////////////
+// getters and setters
+//////////////////////////////////////////////
 
   public FBody getBody(){
     return body;
