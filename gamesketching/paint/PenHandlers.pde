@@ -3,9 +3,9 @@
 void penDown(){
 
     //ERASE: remove strokes that intersect pen
-    if (mode==Mode.ERASE || (tablet.getPenKind()==Tablet.ERASER && mode==Mode.PEN)){    
+    if (mode==Mode.ERASE || (tablet.getPenKind()==Tablet.ERASER)){    
         if (selectedGameObj==null) eraseFrom(canvasStrokes);
-        else eraseFrom(selectedGameObj.getStrokes());   
+        else eraseFrom(selectedGameObj);   
     }
 
     //DRAW: create strokes!
@@ -120,26 +120,23 @@ void eraseFrom(StrokeGroup strokes){
     for (Stroke stroke: strokes.getMembers()){
         //if erasing line intersects stroke, remove it from list of strokes
         if (stroke.intersects(mouseX, mouseY, pmouseX, pmouseY)){
-            strokes.removeMember(stroke);
-            //if the stroke belongs to a game object, remove it from the obj
-            //FIX THIS LATER
-            if (stroke.belongsToGameObj()){
-                for (GameObj o: gameObjs){
-                    if (stroke.getGameObjID()==o.getID()){
-                        o.removeStroke(stroke);
-                        if (o.getStrokes().getSize()==0){ //if there are no more strokes left in the obj, remove it
-                            o.hideUI();
-                            gameObjs.remove(o);
-                        }  
-
-                        break;
-                    }
-                }
-            } 
+            //if this stroke is part of the current stroke selection, erase the whole selection
+            if (selectedStrokes.getMembers().contains(stroke)) eraseSelection();
+            //otherwise just erase that stroke
+            else strokes.removeMember(stroke);
             reDraw();
             break;
         }
     }
+}
+
+void eraseFrom(GameObj obj){
+    eraseFrom(obj.getStrokes());
+    if (obj.getStrokes().getSize()==0){ //if there are no more strokes left in the obj, remove it
+        obj.hideUI();
+        gameObjs.remove(obj);
+        selectedGameObj = null;
+    }  
 }
 
 void selectStrokesFrom(StrokeGroup strokes){

@@ -44,6 +44,7 @@ int currentID;
 GameObj selectedGameObj;
 FWorld world;
 KeyPublisher[] keys;
+PGraphics background;
 
 void setup() {
     fullScreen(2); 

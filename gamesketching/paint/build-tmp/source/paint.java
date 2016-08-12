@@ -77,6 +77,7 @@ int currentID;
 GameObj selectedGameObj;
 FWorld world;
 KeyPublisher[] keys;
+PGraphics background;
 
 public void setup() {
      
@@ -376,6 +377,54 @@ public void keyPressed(){
 public void keyReleased(){
     setKeyState(false);
 }
+//encompasses all possible game object behaviours
+abstract public class Behaviour{
+
+	GameObj parent;
+	boolean activated;
+
+	Behaviour(GameObj obj){
+		parent = obj;
+	}
+
+	abstract public void update(boolean state);
+
+	public void activate(){
+		activated = true;
+	}
+
+	public void deactivate(){
+		activated = false;
+	}
+
+}
+//encompasses all possible events, that may instigate game object bheaviours
+abstract public class Event{
+
+	ArrayList<Behaviour> subscribers;
+	boolean occuring;
+
+	Event(){
+		subscribers = new ArrayList<Behaviour>();
+	}
+
+	public void addSubscriber(Behaviour b){
+		if (!subscribers.contains(b)){
+			subscribers.add(b);
+		}
+	}
+
+	public void removeSubscriber(Behaviour b){
+		subscribers.remove(b);
+	}
+
+	public void notifySubscribers(){
+		for (Behaviour b: subscribers){
+			b.update(occuring);
+		}
+	}
+
+}
 public void restartGame(){
 	for (GameObj obj: gameObjs){
 		obj.revert();
@@ -385,26 +434,27 @@ public void restartGame(){
 }
 
 
-//Game object class
+//Game Object
 //Keeps stroke and game data
 class GameObj{
 
   //padding required to account for stroke width
   static final float RASTER_PADDING = 2f;
 
-	StrokeGroup strokeGroup; //vector stroke group
-  PGraphics raster; //raster of vector strokeGroup, for rendering efficiency during gameplay
-  FBody body; //physics body
-  int id;
-  float w, h;
-  PVector gamePosition; //position in gameplay mode
-  PVector paintPosition; //position in editing mode
-  CheckBox ui; //attribute editor ui
-  Button selectBtn; //used to select object for editing
-  Method[] keyListeners;
+	private StrokeGroup strokeGroup; 
+  private PGraphics raster;
+  private FBody body; 
+  private ArrayList<FBody> bodies; //if there are duplicate bodies
+  private int id;
+  private float w, h;
+  private PVector position; //position in editing mode
+  private PVector rasterPosition;
+  private CheckBox ui; //attribute editor ui
+  private Button selectBtn; //used to select object for editing
+  private Method[] keyListeners;
 
   //some attribute bools
-  boolean pickup, visible, slippery, bouncy, isInWorld, selected;
+  private  boolean pickup, visible, slippery, bouncy, isInWorld, selected;
 
 	GameObj(int i, StrokeGroup sg, FWorld world, ControlP5 cp5){
     id = i;
@@ -413,13 +463,13 @@ class GameObj{
     //label strokes as belonging to this game object
     for (Stroke s: strokeGroup.getMembers()) s.addToGameObj(id, this);
     keyListeners = new Method[200];
-
-    gamePosition = new PVector(strokeGroup.getLeft(), strokeGroup.getTop());
     w = strokeGroup.getRight() - strokeGroup.getLeft();
     h = strokeGroup.getBottom() - strokeGroup.getTop();
     raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
     body = setupBody(false);
-    paintPosition = new PVector(gamePosition.x, gamePosition.y);
+    bodies = new ArrayList<FBody>();
+    position = new PVector(strokeGroup.getLeft(), strokeGroup.getTop());
+    rasterPosition = new PVector(position.x, position.y);
 
     pickup = false;
     visible = true;
@@ -436,10 +486,10 @@ class GameObj{
 // drawing
 //////////////////////////////////////////////
 
-  //for each world.step, move raster gamePosition to body gamePosition
+  //for each world.step, move raster position to game position
   public void update(){
-    gamePosition.x = body.getX()+paintPosition.x;
-    gamePosition.y = body.getY()+paintPosition.y;
+    rasterPosition.x = body.getX()+position.x;
+    rasterPosition.y = body.getY()+position.y;
     if (pickup){
       if (body.getContacts().size()!=0){//for now, pickups disappear upon contact with any body
         world.remove(body);
@@ -450,14 +500,18 @@ class GameObj{
 
   //draw the sprite where the body is
   public void draw(){
-    if (visible&&isInWorld) image(raster,gamePosition.x, gamePosition.y);
+    if (visible&&isInWorld) image(raster,rasterPosition.x, rasterPosition.y);
+  }
+
+  public void draw(FBody b){
+    if (visible&&isInWorld){
+      image(raster, b.getX()+position.x, b.getY()+position.y);
+    }
   }
 
   //draw vector strokeGroup onto raster sprite
-  public void setupRaster(){
-    for (Stroke s: strokeGroup.getMembers()){
-      s.draw(raster, gamePosition, RASTER_PADDING/2);
-    }
+  private void setupRaster(){
+    strokeGroup.createRaster(raster, rasterPosition, RASTER_PADDING/2);
   }
 
 ///////////////////////////////////////////////
@@ -482,16 +536,15 @@ class GameObj{
   }
 
   //when messing with the strokes in the strokegroup, we need to update geometry accordingly
-  public void recalculateStrokeDependentData(){
-    gamePosition = new PVector(strokeGroup.getLeft(), strokeGroup.getTop());
+  private void recalculateStrokeDependentData(){
+    position = new PVector(strokeGroup.getLeft(), strokeGroup.getTop());
     w = strokeGroup.getRight() - strokeGroup.getLeft();
     h = strokeGroup.getBottom() - strokeGroup.getTop();
     raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
-    paintPosition = new PVector(gamePosition.x, gamePosition.y);
     newBody(ui.getState(2)); //should probably use a bool
     setupRaster();
-    ui.getParent().setPosition(paintPosition.x+77, paintPosition.y+h+20);
-    selectBtn.setPosition(paintPosition.x, paintPosition.y+h);
+    ui.getParent().setPosition(position.x+77, position.y+h+20);
+    selectBtn.setPosition(position.x, position.y+h);
   }
 
 ///////////////////////////////////////////////
@@ -501,37 +554,45 @@ class GameObj{
   //setup physics body for gameobj
   //if isExact, use the precise points to create the body as a series of lines
   //otherwise create a wrapping polygon
-  public FBody setupBody(boolean isExact){
+  private FBody setupBody(boolean isExact){
     FBody b;
     if (isExact) b = createLineCompound(false);
     else b = createHull();
     b.setPosition(0,0);
     b.setRotatable(false);
     b.setRestitution(0);
-    b.setFriction(100);
+    b.setFriction(10);
     b.setDamping(0);
     return b;
   }
 
 //use giftwrap algorithm to create convex body FPoly
-  public FPoly createHull(){
+  private FPoly createHull(){
     GiftWrap wrapper = new GiftWrap();
-    Point[] input = strokeGroup.getKeyPoints().toArray(new Point[strokeGroup.getKeyPointsSize()]);
+    ArrayList<Point> allKeyPoints = new ArrayList<Point>();
+    for (Stroke s : strokeGroup.getMembers()){
+      Collections.addAll(allKeyPoints, s.keyPoints);
+    }
+    Point[] input = allKeyPoints.toArray(new Point[allKeyPoints.size()]);
     return wrapper.generate(input);
   }
 
   //string together key points to make a big line body
-  public FCompound createLineCompound(boolean isJumpThrough){
+  private FCompound createLineCompound(boolean isJumpThrough){
       FCompound lines = new FCompound();
       for (Stroke s: strokeGroup.getMembers()){
         for (int i = 1; i < s.keyPoints.length; i++){
           lines.addBody(new FLine(s.keyPoints[i-1].getX(), s.keyPoints[i-1].getY(),s.keyPoints[i].getX(), s.keyPoints[i].getY()));
+          //need DOUBLE-SIDED LINE... creating another line in the opposite direction with a slight offset works for simple lines
+          //lines.addBody(new FLine(s.keyPoints[s.keyPoints.length-i].getX(), s.keyPoints[s.keyPoints.length-i].getY()+5,
+           //                       s.keyPoints[s.keyPoints.length-i-1].getX(), s.keyPoints[s.keyPoints.length-i-1].getY()+5));
+          //how about other shapes? circles with interiors? :/
         }
       }
       return lines;
   }
 
-  public void newBody(boolean isExact){
+  private void newBody(boolean isExact){
       world.remove(body);
       FBody newBody = setupBody(isExact);
       newBody.setStatic(body.isStatic());
@@ -543,7 +604,7 @@ class GameObj{
 
 
 ///////////////////////////////////////////////
-// setting attributes
+// setting attributes & behaviours
 //////////////////////////////////////////////
 
   public void setStatic(boolean state){
@@ -573,7 +634,7 @@ class GameObj{
   public void setSlippery(boolean state){
     slippery = state;
     if (slippery) body.setFriction(0);
-    else body.setFriction(100);
+    else body.setFriction(10);
   }
 
 ///////////////////////////////////////////////
@@ -600,14 +661,20 @@ class GameObj{
     else body.setVelocity(0, body.getVelocityY());
   }
 
+  public void testMethod(boolean keyPushed){
+    if (keyPushed) print("method invoked true \n");
+    else print("method invoked false \n");
+  }
+
+
 ///////////////////////////////////////////////
 // menu setup/listeners
 //////////////////////////////////////////////
 
     //setup attributes menu
-  public void setupMenu(String id, ControlP5 cp5){
+  private void setupMenu(String id, ControlP5 cp5){
     Group menu = cp5.addGroup("attributes_"+id).setBackgroundColor(color(0, 64))
-    .setPosition(paintPosition.x+77, paintPosition.y+h+20)
+    .setPosition(position.x+77, position.y+h+20)
     .setHeight(20)
     .setWidth(75)
     .close();
@@ -627,7 +694,7 @@ class GameObj{
    .moveTo(menu);
 
    selectBtn = cp5.addButton("edit_strokes_"+id)
-      .setPosition(paintPosition.x,paintPosition.y+h)
+      .setPosition(position.x,position.y+h)
       .setHeight(20)
       .setWidth(75);
   }
@@ -652,11 +719,6 @@ class GameObj{
 ///////////////////////////////////////////////
 // key listening
 //////////////////////////////////////////////
-
-  public void testMethod(boolean keyPushed){
-    if (keyPushed) print("method invoked true \n");
-    else print("method invoked false \n");
-  }
 
   public void bindMethodToKey(Method method, int keyVal){
     keyListeners[keyVal] = method;
@@ -979,9 +1041,9 @@ public void drawPolygon(Polygon p){
 public void penDown(){
 
     //ERASE: remove strokes that intersect pen
-    if (mode==Mode.ERASE || (tablet.getPenKind()==Tablet.ERASER && mode==Mode.PEN)){    
+    if (mode==Mode.ERASE || (tablet.getPenKind()==Tablet.ERASER)){    
         if (selectedGameObj==null) eraseFrom(canvasStrokes);
-        else eraseFrom(selectedGameObj.getStrokes());   
+        else eraseFrom(selectedGameObj);   
     }
 
     //DRAW: create strokes!
@@ -1096,26 +1158,23 @@ public void eraseFrom(StrokeGroup strokes){
     for (Stroke stroke: strokes.getMembers()){
         //if erasing line intersects stroke, remove it from list of strokes
         if (stroke.intersects(mouseX, mouseY, pmouseX, pmouseY)){
-            strokes.removeMember(stroke);
-            //if the stroke belongs to a game object, remove it from the obj
-            //FIX THIS LATER
-            if (stroke.belongsToGameObj()){
-                for (GameObj o: gameObjs){
-                    if (stroke.getGameObjID()==o.getID()){
-                        o.removeStroke(stroke);
-                        if (o.getStrokes().getSize()==0){ //if there are no more strokes left in the obj, remove it
-                            o.hideUI();
-                            gameObjs.remove(o);
-                        }  
-
-                        break;
-                    }
-                }
-            } 
+            //if this stroke is part of the current stroke selection, erase the whole selection
+            if (selectedStrokes.getMembers().contains(stroke)) eraseSelection();
+            //otherwise just erase that stroke
+            else strokes.removeMember(stroke);
             reDraw();
             break;
         }
     }
+}
+
+public void eraseFrom(GameObj obj){
+    eraseFrom(obj.getStrokes());
+    if (obj.getStrokes().getSize()==0){ //if there are no more strokes left in the obj, remove it
+        obj.hideUI();
+        gameObjs.remove(obj);
+        selectedGameObj = null;
+    }  
 }
 
 public void selectStrokesFrom(StrokeGroup strokes){
@@ -1181,6 +1240,23 @@ class Point{
     public float getWeight(){
         return weight;
     }
+}
+public class SimpleMovement extends Behaviour{
+
+	PVector velocity;
+	FBody parentBody;
+
+	SimpleMovement(GameObj o, PVector v){
+		super(o);
+		velocity = v;
+		parentBody = parent.getBody();
+	}
+
+	public void update(boolean state){
+		if (state) parentBody.setVelocity(velocity.x, velocity.y);
+		else parentBody.setVelocity(0, 0);
+	}
+
 }
 
 
@@ -1521,27 +1597,19 @@ class Stroke{
 class StrokeGroup{
 
 	ArrayList<Stroke> members;
-	ArrayList<Point> allKeyPoints;
-	//ArrayList<Vector2[]> allKeyPoints;
-	//List<Polygon> polygons;
-	float top, bottom, left, right; //group bounding box
+	float top, bottom, left, right;
 	boolean selected;
 	boolean belongsToEntity;
-	int keyPointsSize, size;
+	int size;
 
 	StrokeGroup(){
 		members = new ArrayList<Stroke>();
-		allKeyPoints = new ArrayList<Point>();
-		//allKeyPoints = new ArrayList<Vector2>();
-		//polygons = new ArrayList<Polygon>();
-
 		selected = true;
 		belongsToEntity = false;
 		top = Float.MAX_VALUE;
         bottom = 0;
         left = Float.MAX_VALUE;
         right = 0;
-        keyPointsSize = 0;
         size = 0;
 
 	}
@@ -1549,8 +1617,6 @@ class StrokeGroup{
 	public void addMember(Stroke s){
 		members.add(s);
 		size++;
-		keyPointsSize += s.keyPoints.length;
-		Collections.addAll(allKeyPoints, s.keyPoints);
 		if (s.left < left) left = s.left;
         if (s.right > right) right = s.right;
         if (s.top < top) top = s.top;
@@ -1560,7 +1626,7 @@ class StrokeGroup{
 	public void removeMember(Stroke stroke){
 		members.remove(stroke);
 		size--;
-		//recalculate key points & bounding box
+		//recalculate bounding box
 		update();
 	}
 
@@ -1570,11 +1636,7 @@ class StrokeGroup{
         bottom = 0;
         left = Float.MAX_VALUE;
         right = 0;
-        keyPointsSize = 0;
-		allKeyPoints = new ArrayList<Point>();
 		for (Stroke s: members){
-			keyPointsSize += s.keyPoints.length;
-			Collections.addAll(allKeyPoints, s.keyPoints);
 			if (s.left < left) left = s.left;
 	        if (s.right > right) right = s.right;
 	        if (s.top < top) top = s.top;
@@ -1615,18 +1677,20 @@ class StrokeGroup{
 	 	for (Stroke s: members){
 	 		copy.members.add(s);
 	 	}
-	 	for (Point p: allKeyPoints){
-	 		copy.allKeyPoints.add(p);
-	 	}
 	 	copy.selected = selected;
 		copy.top = top;
         copy.bottom = bottom;
         copy.left = left;
         copy.right = right;
-        copy.keyPointsSize = keyPointsSize;
         copy.size = size;
 
         return copy;
+	 }
+
+	 public void createRaster(PGraphics raster, PVector pos, float padding){
+	 	for (Stroke s: members){
+      		s.draw(raster, pos, padding/2);
+    	}
 	 }
 
 
@@ -1634,20 +1698,12 @@ class StrokeGroup{
 // GETTERS AND SETTERS
 // --------------------------------------
 
-	public ArrayList<Point> getKeyPoints(){
-		return allKeyPoints;
-	}
-
 	public ArrayList<Stroke> getMembers() {
 		return members;
 	}
 
 	public int getSize(){
 		return size;
-	}
-
-	public int getKeyPointsSize(){
-		return keyPointsSize;
 	}
 
 	public void setMembers(ArrayList<Stroke> members) {

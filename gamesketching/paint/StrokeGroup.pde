@@ -4,27 +4,19 @@ import fisica.*;
 class StrokeGroup{
 
 	ArrayList<Stroke> members;
-	ArrayList<Point> allKeyPoints;
-	//ArrayList<Vector2[]> allKeyPoints;
-	//List<Polygon> polygons;
-	float top, bottom, left, right; //group bounding box
+	float top, bottom, left, right;
 	boolean selected;
 	boolean belongsToEntity;
-	int keyPointsSize, size;
+	int size;
 
 	StrokeGroup(){
 		members = new ArrayList<Stroke>();
-		allKeyPoints = new ArrayList<Point>();
-		//allKeyPoints = new ArrayList<Vector2>();
-		//polygons = new ArrayList<Polygon>();
-
 		selected = true;
 		belongsToEntity = false;
 		top = Float.MAX_VALUE;
         bottom = 0;
         left = Float.MAX_VALUE;
         right = 0;
-        keyPointsSize = 0;
         size = 0;
 
 	}
@@ -32,8 +24,6 @@ class StrokeGroup{
 	void addMember(Stroke s){
 		members.add(s);
 		size++;
-		keyPointsSize += s.keyPoints.length;
-		Collections.addAll(allKeyPoints, s.keyPoints);
 		if (s.left < left) left = s.left;
         if (s.right > right) right = s.right;
         if (s.top < top) top = s.top;
@@ -43,7 +33,7 @@ class StrokeGroup{
 	void removeMember(Stroke stroke){
 		members.remove(stroke);
 		size--;
-		//recalculate key points & bounding box
+		//recalculate bounding box
 		update();
 	}
 
@@ -53,11 +43,7 @@ class StrokeGroup{
         bottom = 0;
         left = Float.MAX_VALUE;
         right = 0;
-        keyPointsSize = 0;
-		allKeyPoints = new ArrayList<Point>();
 		for (Stroke s: members){
-			keyPointsSize += s.keyPoints.length;
-			Collections.addAll(allKeyPoints, s.keyPoints);
 			if (s.left < left) left = s.left;
 	        if (s.right > right) right = s.right;
 	        if (s.top < top) top = s.top;
@@ -98,18 +84,20 @@ class StrokeGroup{
 	 	for (Stroke s: members){
 	 		copy.members.add(s);
 	 	}
-	 	for (Point p: allKeyPoints){
-	 		copy.allKeyPoints.add(p);
-	 	}
 	 	copy.selected = selected;
 		copy.top = top;
         copy.bottom = bottom;
         copy.left = left;
         copy.right = right;
-        copy.keyPointsSize = keyPointsSize;
         copy.size = size;
 
         return copy;
+	 }
+
+	 void createRaster(PGraphics raster, PVector pos, float padding){
+	 	for (Stroke s: members){
+      		s.draw(raster, pos, padding/2);
+    	}
 	 }
 
 
@@ -117,20 +105,12 @@ class StrokeGroup{
 // GETTERS AND SETTERS
 // --------------------------------------
 
-	public ArrayList<Point> getKeyPoints(){
-		return allKeyPoints;
-	}
-
 	public ArrayList<Stroke> getMembers() {
 		return members;
 	}
 
 	public int getSize(){
 		return size;
-	}
-
-	public int getKeyPointsSize(){
-		return keyPointsSize;
 	}
 
 	public void setMembers(ArrayList<Stroke> members) {
