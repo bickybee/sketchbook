@@ -6,13 +6,13 @@ class StrokeGroup{
 	ArrayList<Stroke> members;
 	float top, bottom, left, right;
 	boolean selected;
-	boolean belongsToEntity;
+	boolean belongsToGameObj;
 	int size;
 
 	StrokeGroup(){
 		members = new ArrayList<Stroke>();
 		selected = true;
-		belongsToEntity = false;
+		belongsToGameObj = false;
 		top = Float.MAX_VALUE;
         bottom = 0;
         left = Float.MAX_VALUE;
@@ -60,7 +60,7 @@ class StrokeGroup{
     	for (Stroke s: members){
     		s.draw();
     	}
-    	if (belongsToEntity) drawBounds(color(50,50,255));
+    	if (belongsToGameObj) drawBounds(color(50,50,255));
     }
 
     void drawBounds(color c){
@@ -157,12 +157,12 @@ class StrokeGroup{
 		this.selected = selected;
 	}
 
-	public void belongsToEntity(){
-		belongsToEntity = true;
+	public void belongsToGameObj(){
+		belongsToGameObj = true;
 	}
 
-	public void removeFromEntity(){
-		belongsToEntity = false;
+	public void removeFromGameObj(){
+		belongsToGameObj = false;
 	}
 
 }

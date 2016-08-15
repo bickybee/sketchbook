@@ -116,6 +116,7 @@ void penHover(){
     }
 }
 
+//returns intersected stroke
 void eraseFrom(StrokeGroup strokes){
     for (Stroke stroke: strokes.getMembers()){
         //if erasing line intersects stroke, remove it from list of strokes
@@ -125,7 +126,6 @@ void eraseFrom(StrokeGroup strokes){
             //otherwise just erase that stroke
             else strokes.removeMember(stroke);
             reDraw();
-            break;
         }
     }
 }

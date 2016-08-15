@@ -108,6 +108,7 @@ class GameObj{
     h = strokeGroup.getBottom() - strokeGroup.getTop();
     raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
     newBody(ui.getState(2)); //should probably use a bool
+    rasterPosition = new PVector(position.x, position.y);
     setupRaster();
     ui.getParent().setPosition(position.x+77, position.y+h+20);
     selectBtn.setPosition(position.x, position.y+h);

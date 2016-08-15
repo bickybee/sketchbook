@@ -542,6 +542,7 @@ class GameObj{
     h = strokeGroup.getBottom() - strokeGroup.getTop();
     raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
     newBody(ui.getState(2)); //should probably use a bool
+    rasterPosition = new PVector(position.x, position.y);
     setupRaster();
     ui.getParent().setPosition(position.x+77, position.y+h+20);
     selectBtn.setPosition(position.x, position.y+h);
@@ -1154,6 +1155,7 @@ public void penHover(){
     }
 }
 
+//returns intersected stroke
 public void eraseFrom(StrokeGroup strokes){
     for (Stroke stroke: strokes.getMembers()){
         //if erasing line intersects stroke, remove it from list of strokes
@@ -1163,7 +1165,6 @@ public void eraseFrom(StrokeGroup strokes){
             //otherwise just erase that stroke
             else strokes.removeMember(stroke);
             reDraw();
-            break;
         }
     }
 }
@@ -1599,13 +1600,13 @@ class StrokeGroup{
 	ArrayList<Stroke> members;
 	float top, bottom, left, right;
 	boolean selected;
-	boolean belongsToEntity;
+	boolean belongsToGameObj;
 	int size;
 
 	StrokeGroup(){
 		members = new ArrayList<Stroke>();
 		selected = true;
-		belongsToEntity = false;
+		belongsToGameObj = false;
 		top = Float.MAX_VALUE;
         bottom = 0;
         left = Float.MAX_VALUE;
@@ -1653,7 +1654,7 @@ class StrokeGroup{
     	for (Stroke s: members){
     		s.draw();
     	}
-    	if (belongsToEntity) drawBounds(color(50,50,255));
+    	if (belongsToGameObj) drawBounds(color(50,50,255));
     }
 
     public void drawBounds(int c){
@@ -1750,12 +1751,12 @@ class StrokeGroup{
 		this.selected = selected;
 	}
 
-	public void belongsToEntity(){
-		belongsToEntity = true;
+	public void belongsToGameObj(){
+		belongsToGameObj = true;
 	}
 
-	public void removeFromEntity(){
-		belongsToEntity = false;
+	public void removeFromGameObj(){
+		belongsToGameObj = false;
 	}
 
 }
