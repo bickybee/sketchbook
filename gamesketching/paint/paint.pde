@@ -301,7 +301,8 @@ public void controlEvent(ControlEvent event){
                 keys[127+UP].removeSubscriber(obj);
                 keys[127+DOWN].removeSubscriber(obj);
                 keys[127+LEFT].removeSubscriber(obj);
-                keys[127+RIGHT].removeSubscriber(obj);                
+                keys[127+RIGHT].removeSubscriber(obj);  
+                obj.getBody().setDensity(obj.getInitialDensity());              
             }
             
         }

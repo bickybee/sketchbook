@@ -334,7 +334,8 @@ public void controlEvent(ControlEvent event){
                 keys[127+UP].removeSubscriber(obj);
                 keys[127+DOWN].removeSubscriber(obj);
                 keys[127+LEFT].removeSubscriber(obj);
-                keys[127+RIGHT].removeSubscriber(obj);                
+                keys[127+RIGHT].removeSubscriber(obj);  
+                obj.getBody().setDensity(obj.getInitialDensity());              
             }
             
         }
@@ -439,7 +440,7 @@ public void restartGame(){
 class GameObj{
 
   //padding required to account for stroke width
-  static final float RASTER_PADDING = 2f;
+  static final float RASTER_PADDING = 4f;
 
 	private StrokeGroup strokeGroup; 
   private PGraphics raster;
@@ -452,6 +453,7 @@ class GameObj{
   private CheckBox ui; //attribute editor ui
   private Button selectBtn; //used to select object for editing
   private Method[] keyListeners;
+  private float initialDensity;
 
   //some attribute bools
   private  boolean pickup, visible, slippery, bouncy, isInWorld, selected;
@@ -477,6 +479,7 @@ class GameObj{
     bouncy = false;
     isInWorld = true;
     selected = false;
+    initialDensity = body.getDensity();
     setupRaster();
     setupMenu(Integer.toString(id), cp5);
 
@@ -598,6 +601,7 @@ class GameObj{
       FBody newBody = setupBody(isExact);
       newBody.setStatic(body.isStatic());
       newBody.setSensor(body.isSensor());
+      if (body.isStatic()) newBody.setDensity(body.getDensity());
       body = newBody;
       setSlippery(slippery);
       setBouncy(bouncy);
@@ -785,6 +789,10 @@ class GameObj{
 
   public int getID(){
     return id;
+  }
+
+  public float getInitialDensity(){
+    return initialDensity;
   }
 
 }
@@ -1157,13 +1165,13 @@ public void penHover(){
 
 //returns intersected stroke
 public void eraseFrom(StrokeGroup strokes){
-    for (Stroke stroke: strokes.getMembers()){
+    for (int i = 0; i < strokes.getMembers().size(); i++){
         //if erasing line intersects stroke, remove it from list of strokes
-        if (stroke.intersects(mouseX, mouseY, pmouseX, pmouseY)){
+        if (strokes.getMembers().get(i).intersects(mouseX, mouseY, pmouseX, pmouseY)){
             //if this stroke is part of the current stroke selection, erase the whole selection
-            if (selectedStrokes.getMembers().contains(stroke)) eraseSelection();
+            if (selectedStrokes.getMembers().contains(strokes.getMembers().get(i))) eraseSelection();
             //otherwise just erase that stroke
-            else strokes.removeMember(stroke);
+            else strokes.removeMember(strokes.getMembers().get(i));
             reDraw();
         }
     }
@@ -1171,6 +1179,7 @@ public void eraseFrom(StrokeGroup strokes){
 
 public void eraseFrom(GameObj obj){
     eraseFrom(obj.getStrokes());
+    obj.updateStrokes();
     if (obj.getStrokes().getSize()==0){ //if there are no more strokes left in the obj, remove it
         obj.hideUI();
         gameObjs.remove(obj);

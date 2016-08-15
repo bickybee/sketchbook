@@ -5,7 +5,7 @@ import fisica.*;
 class GameObj{
 
   //padding required to account for stroke width
-  static final float RASTER_PADDING = 2f;
+  static final float RASTER_PADDING = 4f;
 
 	private StrokeGroup strokeGroup; 
   private PGraphics raster;
@@ -18,6 +18,7 @@ class GameObj{
   private CheckBox ui; //attribute editor ui
   private Button selectBtn; //used to select object for editing
   private Method[] keyListeners;
+  private float initialDensity;
 
   //some attribute bools
   private  boolean pickup, visible, slippery, bouncy, isInWorld, selected;
@@ -43,6 +44,7 @@ class GameObj{
     bouncy = false;
     isInWorld = true;
     selected = false;
+    initialDensity = body.getDensity();
     setupRaster();
     setupMenu(Integer.toString(id), cp5);
 
@@ -164,6 +166,7 @@ class GameObj{
       FBody newBody = setupBody(isExact);
       newBody.setStatic(body.isStatic());
       newBody.setSensor(body.isSensor());
+      if (body.isStatic()) newBody.setDensity(body.getDensity());
       body = newBody;
       setSlippery(slippery);
       setBouncy(bouncy);
@@ -351,6 +354,10 @@ class GameObj{
 
   public int getID(){
     return id;
+  }
+
+  public float getInitialDensity(){
+    return initialDensity;
   }
 
 }
