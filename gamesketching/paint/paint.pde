@@ -47,8 +47,7 @@ KeyPublisher[] keys;
 PGraphics background;
 
 void setup() {
-    fullScreen(2); 
-
+    fullScreen(2);
     //INITIALIZING EVERTHING
     tablet = new Tablet(this);
     bg = color(255);
@@ -127,12 +126,6 @@ void setup() {
                 .addItem("play",2);
     modeRadio.getItem("draw").setState(true);
 
-    gravityTog = gui.addToggle("gravity")
-        .setLabel("gravity")
-        .setColorLabel(color(0))
-        .setPosition(0,buttonH*12+40)
-        .setSize(buttonW, buttonH);
-
     background(bg);
 }
 
@@ -190,27 +183,30 @@ public void mode(int val){
         //paint mode
         case(1):
             playing = false;
+            //stopGame();
             //remove game objects from game world
             //show their editing menus
             for (GameObj obj: gameObjs){
                 obj.showUI();
-                world.remove(obj.getBody());
-                world.step();
+                for (FBody b : obj.getBodies()){
+                    world.remove(b);
+                }
+                obj.clearBodies();
             }
-            restartGame();
+            world.step();
             reDraw();
            break;
         //play mode
         case(2):
             playing = true;
+            //startGame();
             //add game objects to game world
             //hide their editing menus
             for (GameObj obj: gameObjs){
                 obj.hideUI();
-                world.add(obj.getBody());
-                world.step();
+                world.add(obj.spawnBody());
             }
-
+            world.step();
             reDraw();
             break;
         default:
@@ -272,14 +268,6 @@ public void colour(int val){
     }
 }
 
-public void gravity(int val){
-    if (world!= null){
-        if (gravityTog.getBooleanValue()) world.setGravity(0,800);
-        else world.setGravity(0,0);
-    }
-    
-}
-
 //game object editing menu handler
 public void controlEvent(ControlEvent event){
     //check if any game object's interfaces cased the event
@@ -339,6 +327,9 @@ public void setKeyState(boolean isPushed){
     }
 }
 public void keyPressed(){
+    if (key=='n'){
+        world.add(gameObjs.get(0).spawnBody());
+    }
     setKeyState(true);
 }
 

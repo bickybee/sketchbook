@@ -15,6 +15,7 @@ class Stroke{
     int size;
     Point[] points;
     Point[] keyPoints;
+    Point[] keyPointsOffset;
     color colour;
     float top, bottom, left, right; //bounding box coordinates
     boolean selected;
@@ -203,7 +204,7 @@ class Stroke{
     }
 
     //line intersection with stroke
-    boolean intersects(float x1, float y1, float x2, float y2){
+    public boolean intersects(float x1, float y1, float x2, float y2){
         //check if end points are in bounding box, or that it intersects the box
         if (boundsContain(x1, y1)||boundsContain(x2, y2)||boundsIntersectLine(x1,y1,x2,y2)){
             //for each pair of points, create line segments and check intersections
@@ -217,7 +218,7 @@ class Stroke{
         return false;
     }
 
-    void translate(float xOff, float yOff){
+    public void translate(float xOff, float yOff){
         left += xOff;
         right += xOff;
         top += yOff;
@@ -226,6 +227,36 @@ class Stroke{
             p.translate(xOff, yOff);
         }
     }
+
+    public void offsetKeyPoints(){
+        keyPointsOffset = new Point[keyPoints.length];
+        for (int i = 0; i < keyPoints.length; i++){
+            keyPointsOffset[i] = offsetByNormal(i, keyPoints);
+        }
+    }
+
+  //normal@point = avg((dy1, -dx1), (dy2, -dx2));
+  private Point offsetByNormal(int i, Point[] points){
+    float dx1 = 0;
+    float dy1 = 0;
+    float dx2 = 0;
+    float dy2 = 0;
+    PVector normal = new PVector();
+    if (i != 0){  
+      dx1 = points[i].getX() - points[i-1].getX();
+      dy1 = points[i].getY() - points[i-1].getY();
+      if (i==points.length-1) normal = new PVector(-dy1, dx1);
+    }
+    if (i!=points.length-1){
+      dx2 = points[i+1].getX() - points[i].getX();
+      dy2 = points[i+1].getY() - points[i].getY();
+      if (i==0) normal = new PVector(-dy2, dx2);
+    }
+    if ((i!=0) && i!= points.length-1) normal = new PVector(-(dy1+dy2)/2, (dx1+dx2)/2);
+    return new Point((PVector.add(normal.normalize().mult(4), points[i].getCoords())));
+  }
+
+
 
 //testing simplify library
     void simplify(float tolerance){

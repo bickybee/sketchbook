@@ -80,8 +80,7 @@ KeyPublisher[] keys;
 PGraphics background;
 
 public void setup() {
-     
-
+    
     //INITIALIZING EVERTHING
     tablet = new Tablet(this);
     bg = color(255);
@@ -160,12 +159,6 @@ public void setup() {
                 .addItem("play",2);
     modeRadio.getItem("draw").setState(true);
 
-    gravityTog = gui.addToggle("gravity")
-        .setLabel("gravity")
-        .setColorLabel(color(0))
-        .setPosition(0,buttonH*12+40)
-        .setSize(buttonW, buttonH);
-
     background(bg);
 }
 
@@ -223,27 +216,30 @@ public void mode(int val){
         //paint mode
         case(1):
             playing = false;
+            //stopGame();
             //remove game objects from game world
             //show their editing menus
             for (GameObj obj: gameObjs){
                 obj.showUI();
-                world.remove(obj.getBody());
-                world.step();
+                for (FBody b : obj.getBodies()){
+                    world.remove(b);
+                }
+                obj.clearBodies();
             }
-            restartGame();
+            world.step();
             reDraw();
            break;
         //play mode
         case(2):
             playing = true;
+            //startGame();
             //add game objects to game world
             //hide their editing menus
             for (GameObj obj: gameObjs){
                 obj.hideUI();
-                world.add(obj.getBody());
-                world.step();
+                world.add(obj.spawnBody());
             }
-
+            world.step();
             reDraw();
             break;
         default:
@@ -305,14 +301,6 @@ public void colour(int val){
     }
 }
 
-public void gravity(int val){
-    if (world!= null){
-        if (gravityTog.getBooleanValue()) world.setGravity(0,800);
-        else world.setGravity(0,0);
-    }
-    
-}
-
 //game object editing menu handler
 public void controlEvent(ControlEvent event){
     //check if any game object's interfaces cased the event
@@ -372,6 +360,9 @@ public void setKeyState(boolean isPushed){
     }
 }
 public void keyPressed(){
+    if (key=='n'){
+        world.add(gameObjs.get(0).spawnBody());
+    }
     setKeyState(true);
 }
 
@@ -381,11 +372,11 @@ public void keyReleased(){
 //encompasses all possible game object behaviours
 abstract public class Behaviour{
 
-	GameObj parent;
+	GameObj gameObj;
 	boolean activated;
 
 	Behaviour(GameObj obj){
-		parent = obj;
+		gameObj = obj;
 	}
 
 	abstract public void update(boolean state);
@@ -426,7 +417,15 @@ abstract public class Event{
 	}
 
 }
-public void restartGame(){
+
+public void startGame(){
+	for (GameObj obj : gameObjs){
+		obj.hideUI();
+
+	}
+}
+
+public void stopGame(){
 	for (GameObj obj: gameObjs){
 		obj.revert();
 	}
@@ -444,8 +443,10 @@ class GameObj{
 
 	private StrokeGroup strokeGroup; 
   private PGraphics raster;
-  private FBody body; 
+
+  private FBody templateBody; //template templateBody
   private ArrayList<FBody> bodies; //if there are duplicate bodies
+  private Point[] convexHull;
   private int id;
   private float w, h;
   private PVector position; //position in editing mode
@@ -456,7 +457,7 @@ class GameObj{
   private float initialDensity;
 
   //some attribute bools
-  private  boolean pickup, visible, slippery, bouncy, isInWorld, selected;
+  private  boolean pickup, visible, slippery, bouncy, isInWorld, selected, gravity;
 
 	GameObj(int i, StrokeGroup sg, FWorld world, ControlP5 cp5){
     id = i;
@@ -468,7 +469,7 @@ class GameObj{
     w = strokeGroup.getRight() - strokeGroup.getLeft();
     h = strokeGroup.getBottom() - strokeGroup.getTop();
     raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
-    body = setupBody(false);
+    templateBody = setupBody(false);
     bodies = new ArrayList<FBody>();
     position = new PVector(strokeGroup.getLeft(), strokeGroup.getTop());
     rasterPosition = new PVector(position.x, position.y);
@@ -479,7 +480,8 @@ class GameObj{
     bouncy = false;
     isInWorld = true;
     selected = false;
-    initialDensity = body.getDensity();
+    gravity = false;
+    initialDensity = templateBody.getDensity();
     setupRaster();
     setupMenu(Integer.toString(id), cp5);
 
@@ -491,19 +493,16 @@ class GameObj{
 
   //for each world.step, move raster position to game position
   public void update(){
-    rasterPosition.x = body.getX()+position.x;
-    rasterPosition.y = body.getY()+position.y;
-    if (pickup){
-      if (body.getContacts().size()!=0){//for now, pickups disappear upon contact with any body
-        world.remove(body);
-        isInWorld = false;
-      }
+    for (FBody b : bodies){
+      if (gravity) b.addImpulse(0, 80);
     }
   }
 
-  //draw the sprite where the body is
+  //draw the sprite where the templateBody is
   public void draw(){
-    if (visible&&isInWorld) image(raster,rasterPosition.x, rasterPosition.y);
+    for (FBody b : bodies){
+      image(raster, b.getX()+position.x, b.getY()+position.y);
+    }
   }
 
   public void draw(FBody b){
@@ -544,7 +543,8 @@ class GameObj{
     w = strokeGroup.getRight() - strokeGroup.getLeft();
     h = strokeGroup.getBottom() - strokeGroup.getTop();
     raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
-    newBody(ui.getState(2)); //should probably use a bool
+    convexHull = null;
+    newTemplateBody(ui.getState(2)); //should probably use a bool
     rasterPosition = new PVector(position.x, position.y);
     setupRaster();
     ui.getParent().setPosition(position.x+77, position.y+h+20);
@@ -552,11 +552,11 @@ class GameObj{
   }
 
 ///////////////////////////////////////////////
-// physics body creation/updating
+// physics templateBody creation/updating
 //////////////////////////////////////////////
 
-  //setup physics body for gameobj
-  //if isExact, use the precise points to create the body as a series of lines
+  //setup physics templateBody for gameobj
+  //if isExact, use the precise points to create the templateBody as a series of lines
   //otherwise create a wrapping polygon
   private FBody setupBody(boolean isExact){
     FBody b;
@@ -570,41 +570,76 @@ class GameObj{
     return b;
   }
 
-//use giftwrap algorithm to create convex body FPoly
+//use giftwrap algorithm to create convex templateBody FPoly
   private FPoly createHull(){
+    print("create Hull \n");
     GiftWrap wrapper = new GiftWrap();
-    ArrayList<Point> allKeyPoints = new ArrayList<Point>();
-    for (Stroke s : strokeGroup.getMembers()){
-      Collections.addAll(allKeyPoints, s.keyPoints);
+    if (convexHull==null){
+      ArrayList<Point> allKeyPoints = new ArrayList<Point>();
+      for (Stroke s : strokeGroup.getMembers()){
+        Collections.addAll(allKeyPoints, s.keyPoints);
+      }
+      convexHull = allKeyPoints.toArray(new Point[allKeyPoints.size()]);
     }
-    Point[] input = allKeyPoints.toArray(new Point[allKeyPoints.size()]);
-    return wrapper.generate(input);
+    return wrapper.generate(convexHull);
   }
 
-  //string together key points to make a big line body
+  //string together key points to make an FCompound of FLines
   private FCompound createLineCompound(boolean isJumpThrough){
       FCompound lines = new FCompound();
       for (Stroke s: strokeGroup.getMembers()){
-        for (int i = 1; i < s.keyPoints.length; i++){
+        int length = s.keyPoints.length;
+
+        //need DOUBLE-SIDED LINE... creating another line in the opposite direction with offset
+        //offset = normal vector at that point (averaged from neighbouring lines)
+        if (s.keyPointsOffset==null) s.offsetKeyPoints();
+
+        for (int i = 1; i < length; i++){
           lines.addBody(new FLine(s.keyPoints[i-1].getX(), s.keyPoints[i-1].getY(),s.keyPoints[i].getX(), s.keyPoints[i].getY()));
-          //need DOUBLE-SIDED LINE... creating another line in the opposite direction with a slight offset works for simple lines
-          //lines.addBody(new FLine(s.keyPoints[s.keyPoints.length-i].getX(), s.keyPoints[s.keyPoints.length-i].getY()+5,
-           //                       s.keyPoints[s.keyPoints.length-i-1].getX(), s.keyPoints[s.keyPoints.length-i-1].getY()+5));
-          //how about other shapes? circles with interiors? :/
+          lines.addBody(new FLine(s.keyPointsOffset[length-i].getX(), s.keyPointsOffset[length-i].getY(),
+                                  s.keyPointsOffset[length-i-1].getX(), s.keyPointsOffset[length-i-1].getY()));
         }
       }
       return lines;
   }
 
-  private void newBody(boolean isExact){
-      world.remove(body);
+  private void newTemplateBody(boolean isExact){
+      //world.remove(templateBody);
       FBody newBody = setupBody(isExact);
-      newBody.setStatic(body.isStatic());
-      newBody.setSensor(body.isSensor());
-      if (body.isStatic()) newBody.setDensity(body.getDensity());
-      body = newBody;
+      newBody.setStatic(templateBody.isStatic());
+      newBody.setSensor(templateBody.isSensor());
+      if (templateBody.isStatic()) newBody.setDensity(templateBody.getDensity());
+      templateBody = newBody;
       setSlippery(slippery);
       setBouncy(bouncy);
+  }
+
+  public FBody spawnBody(){
+    FBody spawn = copy(templateBody);
+    bodies.add(spawn);
+    return spawn;
+  }
+
+  public void removeBody(FBody b){
+    bodies.remove(b);
+  }
+
+  public void clearBodies(){
+    bodies = new ArrayList<FBody>();
+  }
+
+  public FBody copy(FBody b){
+    FBody newBody;
+    if (templateBody instanceof FCompound) newBody = createLineCompound(false);
+    else newBody = createHull();
+    newBody.setRotatable(false);
+    newBody.setStatic(templateBody.isStatic());
+    newBody.setSensor(templateBody.isSensor());
+    newBody.setDensity(templateBody.getDensity());
+    newBody.setFriction(slippery ? 0 : 10);
+    newBody.setRestitution(bouncy ? 1 : 0);
+    newBody.setDamping(0);
+    return newBody;
   }
 
 
@@ -613,16 +648,16 @@ class GameObj{
 //////////////////////////////////////////////
 
   public void setStatic(boolean state){
-    if (state!=body.isStatic()) body.setStatic(state);
+    if (state!=templateBody.isStatic()) templateBody.setStatic(state);
   }
 
   public void setSolid(boolean state){
-    if (state!=body.isSensor()) body.setSensor(state);
+    if (state!=templateBody.isSensor()) templateBody.setSensor(state);
   }
 
   public void setExact(boolean state){
-    if ((state&&(body instanceof FPoly))||(!state)&&(body instanceof FCompound)){ 
-      newBody(state);
+    if ((state&&(templateBody instanceof FPoly))||(!state)&&(templateBody instanceof FCompound)){ 
+      newTemplateBody(state);
     }
   }
 
@@ -632,14 +667,18 @@ class GameObj{
 
   public void setBouncy(boolean state){
     bouncy = state;
-    if (bouncy) body.setRestitution(1);
-    else body.setRestitution(0);
+    if (bouncy) templateBody.setRestitution(1);
+    else templateBody.setRestitution(0);
   }
 
   public void setSlippery(boolean state){
     slippery = state;
-    if (slippery) body.setFriction(0);
-    else body.setFriction(10);
+    if (slippery) templateBody.setFriction(0);
+    else templateBody.setFriction(10);
+  }
+
+  public void setGravity(boolean state){
+    gravity = state;
   }
 
 ///////////////////////////////////////////////
@@ -647,23 +686,28 @@ class GameObj{
 //////////////////////////////////////////////
 
   public void moveUp(boolean move){
-    if (move) body.setVelocity(body.getVelocityX(),-500);
-    else body.setVelocity(body.getVelocityX(), 0);
+    for (FBody b : bodies){
+      if (move) b.setVelocity(b.getVelocityX(),-500);
+      else b.setVelocity(b.getVelocityX(), 0);
+    }
   }
 
   public void moveDown(boolean move){
-    if (move) body.setVelocity(body.getVelocityX(),500);
-    else body.setVelocity(body.getVelocityX(), 0);
+    for (FBody b : bodies){
+    if (move) b.setVelocity(b.getVelocityX(),500);
+    else b.setVelocity(b.getVelocityX(), 0);}
   }
 
   public void moveRight(boolean move){
-    if (move) body.setVelocity(500,body.getVelocityY());
-    else body.setVelocity(0, body.getVelocityY());
+    for (FBody b : bodies){
+    if (move) b.setVelocity(500,b.getVelocityY());
+    else b.setVelocity(0, b.getVelocityY());}
   }
 
   public void moveLeft(boolean move){
-    if (move) body.setVelocity(-500,body.getVelocityY());
-    else body.setVelocity(0, body.getVelocityY());
+    for (FBody b : bodies){
+    if (move) b.setVelocity(-500,b.getVelocityY());
+    else b.setVelocity(0, b.getVelocityY());}
   }
 
   public void testMethod(boolean keyPushed){
@@ -695,6 +739,7 @@ class GameObj{
    .addItem("bouncy_"+id, 5)
    .addItem("slippery_"+id, 6)
    .addItem("controllable_"+id, 7)
+   .addItem("gravity_"+id,8)
    .setColorLabel(color(0))
    .moveTo(menu);
 
@@ -711,13 +756,14 @@ class GameObj{
     setPickup(ui.getState(3));
     setBouncy(ui.getState(4));
     setSlippery(ui.getState(5));
+    setGravity(ui.getState(7));
   }
 
   //for switching between paint and play mode-- restart play
   public void revert(){
-    body.recreateInWorld();
-    body.setVelocity(0,0);
-    body.setPosition(0,0);
+    templateBody.recreateInWorld();
+    templateBody.setVelocity(0,0);
+    templateBody.setPosition(0,0);
     update();
   }
 
@@ -749,7 +795,11 @@ class GameObj{
 //////////////////////////////////////////////
 
   public FBody getBody(){
-    return body;
+    return templateBody;
+  }
+
+  public ArrayList<FBody> getBodies(){
+    return bodies;
   }
 
 
@@ -955,13 +1005,13 @@ public class KeyPublisher{
 //redraw everything
 public void reDraw(){
     background(bg);
+    drawAllStrokes();
     if (playing) drawAllGameObjs();
     else{
         for (GameObj obj: gameObjs){
             if (!obj.isSelected()) obj.getStrokes().drawBounds(color(135,206,250));
             else obj.getStrokes().drawBounds(color(50,206,135));
         }
-    	drawAllStrokes();
     }
 }
 
@@ -991,8 +1041,10 @@ public void drawAllStrokes(){
     for (Stroke stroke: canvasStrokes.getMembers()){
         stroke.draw();
     }
-    for (GameObj obj : gameObjs){
-        obj.getStrokes().draw();
+    if(!playing){
+        for (GameObj obj : gameObjs){
+            obj.getStrokes().draw();
+        }
     }
 }
 
@@ -1106,7 +1158,7 @@ public void penDown(){
         //dragging: check for strokes that intersect and select them
         else if (mode==Mode.SELECT){
             if (selectedGameObj==null) selectStrokesFrom(canvasStrokes);
-            else selectStrokesFrom(selectedGameObj.getStrokes());
+            else selectStrokesFrom(selectedGameObj);
         }
 
         //dragging: create box
@@ -1139,7 +1191,7 @@ public void penUp(){
     //(should change this later to be more precise than BBs)
     else if (mode==Mode.BOXSELECT){
         if (selectedGameObj==null) boxSelectFrom(canvasStrokes);
-        else boxSelectFrom(selectedGameObj.getStrokes());
+        else boxSelectFrom(selectedGameObj);
         reDraw();
     }
 
@@ -1187,6 +1239,11 @@ public void eraseFrom(GameObj obj){
     }  
 }
 
+public void selectStrokesFrom(GameObj obj){
+    selectStrokesFrom(obj.getStrokes());
+    obj.updateStrokes();
+}
+
 public void selectStrokesFrom(StrokeGroup strokes){
     for (Stroke stroke: strokes.getMembers()){
         if (!stroke.isSelected()&&stroke.intersects(mouseX, mouseY, pmouseX,pmouseY)){
@@ -1199,13 +1256,19 @@ public void selectStrokesFrom(StrokeGroup strokes){
     }
 }
 
-public void boxSelectFrom(StrokeGroup strokes){
+public void boxSelectFrom(GameObj obj){
+    if (boxSelectFrom(obj.getStrokes())) obj.updateStrokes();;
+}
+
+public boolean boxSelectFrom(StrokeGroup strokes){
     for (Stroke s: strokes.getMembers()){
         if (!s.isSelected()&&s.boundsIntersectRect(min(sx1,sx2), min(sy1,sy2), max(sx1,sx2), max(sy1,sy2))){
             s.select();
             selectedStrokes.addMember(s);
+            return true;
         }
     }
+    return false;
 }
 
 
@@ -1217,6 +1280,9 @@ class Point{
     float weight;
     PVector coords;
 
+    Point(PVector p){
+        coords = new PVector(p.x, p.y);
+    }
 
     Point(float x, float y){
         coords = new PVector(x, y);
@@ -1259,12 +1325,28 @@ public class SimpleMovement extends Behaviour{
 	SimpleMovement(GameObj o, PVector v){
 		super(o);
 		velocity = v;
-		parentBody = parent.getBody();
+		parentBody = gameObj.getBody();
 	}
 
 	public void update(boolean state){
 		if (state) parentBody.setVelocity(velocity.x, velocity.y);
 		else parentBody.setVelocity(0, 0);
+	}
+
+}
+public class Spawn extends Behaviour{
+
+	FWorld world;
+
+	Spawn(GameObj obj, FWorld w){
+		super(obj);
+		world = w;
+	}
+
+	public void update(boolean state){
+		if (activated&&state){
+			world.add(gameObj.spawnBody());
+		}
 	}
 
 }
@@ -1285,6 +1367,7 @@ class Stroke{
     int size;
     Point[] points;
     Point[] keyPoints;
+    Point[] keyPointsOffset;
     int colour;
     float top, bottom, left, right; //bounding box coordinates
     boolean selected;
@@ -1496,6 +1579,36 @@ class Stroke{
             p.translate(xOff, yOff);
         }
     }
+
+    public void offsetKeyPoints(){
+        keyPointsOffset = new Point[keyPoints.length];
+        for (int i = 0; i < keyPoints.length; i++){
+            keyPointsOffset[i] = offsetByNormal(i, keyPoints);
+        }
+    }
+
+  //normal@point = avg((dy1, -dx1), (dy2, -dx2));
+  private Point offsetByNormal(int i, Point[] points){
+    float dx1 = 0;
+    float dy1 = 0;
+    float dx2 = 0;
+    float dy2 = 0;
+    PVector normal = new PVector();
+    if (i != 0){  
+      dx1 = points[i].getX() - points[i-1].getX();
+      dy1 = points[i].getY() - points[i-1].getY();
+      if (i==points.length-1) normal = new PVector(-dy1, dx1);
+    }
+    if (i!=points.length-1){
+      dx2 = points[i+1].getX() - points[i].getX();
+      dy2 = points[i+1].getY() - points[i].getY();
+      if (i==0) normal = new PVector(-dy2, dx2);
+    }
+    if ((i!=0) && i!= points.length-1) normal = new PVector(-(dy1+dy2)/2, (dx1+dx2)/2);
+    return new Point((PVector.add(normal.normalize().mult(4), points[i].getCoords())));
+  }
+
+
 
 //testing simplify library
     public void simplify(float tolerance){

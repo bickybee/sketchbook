@@ -4,13 +4,13 @@
 //redraw everything
 void reDraw(){
     background(bg);
+    drawAllStrokes();
     if (playing) drawAllGameObjs();
     else{
         for (GameObj obj: gameObjs){
             if (!obj.isSelected()) obj.getStrokes().drawBounds(color(135,206,250));
             else obj.getStrokes().drawBounds(color(50,206,135));
         }
-    	drawAllStrokes();
     }
 }
 
@@ -40,8 +40,10 @@ void drawAllStrokes(){
     for (Stroke stroke: canvasStrokes.getMembers()){
         stroke.draw();
     }
-    for (GameObj obj : gameObjs){
-        obj.getStrokes().draw();
+    if(!playing){
+        for (GameObj obj : gameObjs){
+            obj.getStrokes().draw();
+        }
     }
 }
 

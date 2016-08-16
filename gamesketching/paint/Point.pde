@@ -7,6 +7,9 @@ class Point{
     float weight;
     PVector coords;
 
+    Point(PVector p){
+        coords = new PVector(p.x, p.y);
+    }
 
     Point(float x, float y){
         coords = new PVector(x, y);

@@ -1,11 +1,11 @@
 //encompasses all possible game object behaviours
 abstract public class Behaviour{
 
-	GameObj parent;
+	GameObj gameObj;
 	boolean activated;
 
 	Behaviour(GameObj obj){
-		parent = obj;
+		gameObj = obj;
 	}
 
 	abstract public void update(boolean state);

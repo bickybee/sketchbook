@@ -6,7 +6,7 @@ public class SimpleMovement extends Behaviour{
 	SimpleMovement(GameObj o, PVector v){
 		super(o);
 		velocity = v;
-		parentBody = parent.getBody();
+		parentBody = gameObj.getBody();
 	}
 
 	public void update(boolean state){

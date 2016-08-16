@@ -59,7 +59,7 @@ void penDown(){
         //dragging: check for strokes that intersect and select them
         else if (mode==Mode.SELECT){
             if (selectedGameObj==null) selectStrokesFrom(canvasStrokes);
-            else selectStrokesFrom(selectedGameObj.getStrokes());
+            else selectStrokesFrom(selectedGameObj);
         }
 
         //dragging: create box
@@ -92,7 +92,7 @@ void penUp(){
     //(should change this later to be more precise than BBs)
     else if (mode==Mode.BOXSELECT){
         if (selectedGameObj==null) boxSelectFrom(canvasStrokes);
-        else boxSelectFrom(selectedGameObj.getStrokes());
+        else boxSelectFrom(selectedGameObj);
         reDraw();
     }
 
@@ -140,6 +140,11 @@ void eraseFrom(GameObj obj){
     }  
 }
 
+void selectStrokesFrom(GameObj obj){
+    selectStrokesFrom(obj.getStrokes());
+    obj.updateStrokes();
+}
+
 void selectStrokesFrom(StrokeGroup strokes){
     for (Stroke stroke: strokes.getMembers()){
         if (!stroke.isSelected()&&stroke.intersects(mouseX, mouseY, pmouseX,pmouseY)){
@@ -152,12 +157,18 @@ void selectStrokesFrom(StrokeGroup strokes){
     }
 }
 
-void boxSelectFrom(StrokeGroup strokes){
+void boxSelectFrom(GameObj obj){
+    if (boxSelectFrom(obj.getStrokes())) obj.updateStrokes();;
+}
+
+boolean boxSelectFrom(StrokeGroup strokes){
     for (Stroke s: strokes.getMembers()){
         if (!s.isSelected()&&s.boundsIntersectRect(min(sx1,sx2), min(sy1,sy2), max(sx1,sx2), max(sy1,sy2))){
             s.select();
             selectedStrokes.addMember(s);
+            return true;
         }
     }
+    return false;
 }
 
