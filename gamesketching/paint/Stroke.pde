@@ -58,7 +58,6 @@ class Stroke{
         if (size>MIN_POINTS_TO_SIMPLIFY) this.simplify(TOLERANCE);
 
         keyPoints = returnSimplified(SS_TOLERANCE); //shares points with main points array!
-        print(size +" vs "+ keyPoints.length + "\n");
         
     }
 

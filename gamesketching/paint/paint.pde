@@ -45,6 +45,7 @@ GameObj selectedGameObj;
 FWorld world;
 KeyPublisher[] keys;
 PGraphics background;
+FContact currentContact;
 
 void setup() {
     fullScreen(2);
@@ -67,6 +68,7 @@ void setup() {
     gameObjs = new ArrayList<GameObj>();
     Fisica.init(this);
     world = new FWorld();
+    currentContact = new FContact();
     world.setGravity(0, 0);
     world.setEdges();
 
@@ -335,4 +337,12 @@ public void keyPressed(){
 
 public void keyReleased(){
     setKeyState(false);
+}
+
+public void contactStarted(FContact contact){
+    currentContact = contact;
+}
+
+public void contactEnd(FContact contact){
+    currentContact = null;
 }

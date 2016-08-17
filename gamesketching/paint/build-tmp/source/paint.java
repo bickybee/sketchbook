@@ -362,6 +362,10 @@ public void setKeyState(boolean isPushed){
 public void keyPressed(){
     if (key=='n'){
         world.add(gameObjs.get(0).spawnBody());
+        ArrayList<FBody> allBodies = world.getBodies();
+        for (FBody b : allBodies){
+            print(b.getName()+"\n");
+        }
     }
     setKeyState(true);
 }
@@ -390,29 +394,69 @@ abstract public class Behaviour{
 	}
 
 }
-//encompasses all possible events, that may instigate game object bheaviours
-abstract public class Event{
+public class CollisionEvent extends Event{
+	
+	//body names!
+	String body1;
+	String body2;
+	boolean singleBody; // if only a single body is defined, 
 
+	CollisionEvent(String body){
+		body1 = body;
+		body2 = null;
+		singleBody = true;
+	}
+
+	CollisionEvent(String b1, String b2){
+		super();
+		body1 = b1;
+		body2 = b2;
+		singleBody = false;
+	}
+
+	public String getBody1(){
+		return body1;
+	}
+
+	public String getBody2(){
+		return body2;
+	}
+
+	public boolean isSingleBodied(){
+		return singleBody;
+	}
+
+}
+abstract public class Event{
+	
 	ArrayList<Behaviour> subscribers;
-	boolean occuring;
+	boolean isOccuring;
 
 	Event(){
+		isOccuring = false;
 		subscribers = new ArrayList<Behaviour>();
 	}
 
-	public void addSubscriber(Behaviour b){
+	public void set(boolean state){
+		if (isOccuring != state){
+			isOccuring = state;
+			notify();	
+		}
+	}
+
+	public void add(Behaviour b){
 		if (!subscribers.contains(b)){
 			subscribers.add(b);
 		}
 	}
 
-	public void removeSubscriber(Behaviour b){
+	public void remove(Behaviour b){
 		subscribers.remove(b);
 	}
 
-	public void notifySubscribers(){
-		for (Behaviour b: subscribers){
-			b.update(occuring);
+	public void notifySubcribers(){
+		for (Behaviour b : subscribers){
+			b.update(isOccuring);
 		}
 	}
 
@@ -639,6 +683,7 @@ class GameObj{
     newBody.setFriction(slippery ? 0 : 10);
     newBody.setRestitution(bouncy ? 1 : 0);
     newBody.setDamping(0);
+    newBody.setName(Integer.toString(id));
     return newBody;
   }
 
@@ -950,6 +995,20 @@ class GiftWrap{
 			  (point.getX() - linePoint1.getX()) * (linePoint2.getY() - linePoint1.getY());
 	}
 }
+public class KeyEvent extends Event{
+
+	int keyValue;
+
+	KeyEvent(int val){
+		super();
+		keyValue = val;
+	}
+
+	public int getKey(){
+		return keyValue;
+	}
+
+}
 //key listener/publisher (where GameObjs are the subscribers)
 
 
@@ -996,6 +1055,20 @@ public class KeyPublisher{
 		for (GameObj obj : subscribers){
 			obj.notify(isPushed, keyValue);
 		}
+	}
+
+}
+public class MouseEvent extends Event{
+	
+	int button;
+
+	MouseEvent(int buttonType){
+		super();
+		button = buttonType;
+	}
+
+	public int getButton(){
+		return button;
 	}
 
 }
@@ -1410,7 +1483,6 @@ class Stroke{
         if (size>MIN_POINTS_TO_SIMPLIFY) this.simplify(TOLERANCE);
 
         keyPoints = returnSimplified(SS_TOLERANCE); //shares points with main points array!
-        print(size +" vs "+ keyPoints.length + "\n");
         
     }
 

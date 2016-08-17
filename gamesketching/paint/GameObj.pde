@@ -205,6 +205,7 @@ class GameObj{
     newBody.setFriction(slippery ? 0 : 10);
     newBody.setRestitution(bouncy ? 1 : 0);
     newBody.setDamping(0);
+    newBody.setName(Integer.toString(id));
     return newBody;
   }
 
