@@ -78,6 +78,7 @@ GameObj selectedGameObj;
 FWorld world;
 KeyPublisher[] keys;
 PGraphics background;
+FContact currentContact;
 
 public void setup() {
     
@@ -100,6 +101,7 @@ public void setup() {
     gameObjs = new ArrayList<GameObj>();
     Fisica.init(this);
     world = new FWorld();
+    //currentContact = new FContact();
     world.setGravity(0, 0);
     world.setEdges();
 
@@ -362,16 +364,20 @@ public void setKeyState(boolean isPushed){
 public void keyPressed(){
     if (key=='n'){
         world.add(gameObjs.get(0).spawnBody());
-        ArrayList<FBody> allBodies = world.getBodies();
-        for (FBody b : allBodies){
-            print(b.getName()+"\n");
-        }
     }
     setKeyState(true);
 }
 
 public void keyReleased(){
     setKeyState(false);
+}
+
+public void contactStarted(FContact contact){
+    currentContact = contact;
+}
+
+public void contactEnd(FContact contact){
+    currentContact = null;
 }
 //encompasses all possible game object behaviours
 abstract public class Behaviour{
@@ -399,19 +405,19 @@ public class CollisionEvent extends Event{
 	//body names!
 	String body1;
 	String body2;
-	boolean singleBody; // if only a single body is defined, 
+	boolean singleBodied; // if only a single body is defined, 
 
 	CollisionEvent(String body){
 		body1 = body;
 		body2 = null;
-		singleBody = true;
+		singleBodied = true;
 	}
 
 	CollisionEvent(String b1, String b2){
 		super();
 		body1 = b1;
 		body2 = b2;
-		singleBody = false;
+		singleBodied = false;
 	}
 
 	public String getBody1(){
@@ -423,7 +429,7 @@ public class CollisionEvent extends Event{
 	}
 
 	public boolean isSingleBodied(){
-		return singleBody;
+		return singleBodied;
 	}
 
 }
@@ -1022,7 +1028,6 @@ public class KeyPublisher{
 		keyValue = val;
 		isPushed = false;
 		subscribers = new ArrayList<GameObj>();
-
 	}
 
 	public void set(boolean pushed){

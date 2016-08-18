@@ -11,7 +11,6 @@ public class KeyPublisher{
 		keyValue = val;
 		isPushed = false;
 		subscribers = new ArrayList<GameObj>();
-
 	}
 
 	public void set(boolean pushed){
