@@ -4,6 +4,7 @@ import controlP5.*;
 import java.awt.geom.*;
 import fisica.*;
 import java.lang.reflect.*;
+import java.util.Random.*;
 
 
 //canvas stuff
@@ -46,6 +47,10 @@ FWorld world;
 KeyPublisher[] keys;
 PGraphics background;
 FContact currentContact;
+KeyEvent[] keyEvents;
+ArrayList<CollisionEvent> collisionEvents;
+ArrayList<FrequencyEvent> frequencyEvents;
+Random random;
 
 void setup() {
     fullScreen(2);
@@ -61,16 +66,23 @@ void setup() {
     mode = Mode.PEN;
     translating = false;
     //
-    keys = new KeyPublisher[200]; //corresponds to each key, ascii up to 127 and with an offset of 127 for coded keys
-    for (int i = 0; i < keys.length; i++){
-        keys[i] = new KeyPublisher(i);
+    keyEvents = new KeyEvent[200]; //corresponds to each key, ascii up to 127 and with an offset of 127 for coded keys
+    for (int i = 0; i < keyEvents.length; i++){
+        keyEvents[i] = new KeyEvent(i);
     }
     gameObjs = new ArrayList<GameObj>();
+    collisionEvents = new ArrayList<CollisionEvent>();
+    frequencyEvents = new ArrayList<FrequencyEvent>();
+    random = new Random();
     Fisica.init(this);
     world = new FWorld();
     //currentContact = new FContact();
     world.setGravity(0, 0);
     world.setEdges();
+    world.left.setName("left");
+    world.right.setName("right");
+    world.top.setName("top");
+    world.bottom.setName("bottom");
 
     playing = false;
     currentID = 0;
@@ -140,6 +152,17 @@ void draw() {
     if (playing){
         world.step();
         for (GameObj obj: gameObjs) obj.update();
+        for (FrequencyEvent f : frequencyEvents){
+            if (f.getFrequency()==0){
+                f.set(true);
+                f.set(false);
+            }
+            else if ((millis()*100)==f.getFrequency()){
+                print("millis \n");
+                f.set(true);
+                f.set(false);
+            }
+        }
         reDraw();
     }
     //if in paint mode,
@@ -169,7 +192,6 @@ public void gameObj(int val){
     if (selectedStrokes.getSize() != 0){
         GameObj newObj = new GameObj(currentID, selectedStrokes, world, gui); //create entity
         gameObjs.add(newObj);
-        keys['a'].addSubscriber(newObj, "testMethod");
         currentID++;
         for (Stroke s : selectedStrokes.getMembers()){
             canvasStrokes.removeMember(s);
@@ -281,18 +303,16 @@ public void controlEvent(ControlEvent event){
 
             //TESTING KEY BINDINGS FOR CONTROL
             if (obj.getUI().getState(6)){
-                keys[127+UP].addSubscriber(obj, "moveUp");
-                keys[127+DOWN].addSubscriber(obj, "moveDown");
-                keys[127+LEFT].addSubscriber(obj, "moveLeft");
-                keys[127+RIGHT].addSubscriber(obj, "moveRight");
-                obj.getBody().setDensity(500); // "kinematic" body lol
+                keyEvents[127+UP].add(new SimpleMotion(obj, new PVector(0,-500)));
+                keyEvents[127+DOWN].add(new SimpleMotion(obj, new PVector(0,500)));
+                keyEvents[127+LEFT].add(new SimpleMotion(obj, new PVector(-500,0)));
+                keyEvents[127+RIGHT].add(new SimpleMotion(obj, new PVector(500,0)));
             }
             else {
-                keys[127+UP].removeSubscriber(obj);
-                keys[127+DOWN].removeSubscriber(obj);
-                keys[127+LEFT].removeSubscriber(obj);
-                keys[127+RIGHT].removeSubscriber(obj);  
-                obj.getBody().setDensity(obj.getInitialDensity());              
+                keyEvents[127+UP].remove(obj);
+                keyEvents[127+DOWN].remove(obj);
+                keyEvents[127+LEFT].remove(obj);
+                keyEvents[127+RIGHT].remove(obj);                 
             }
             
         }
@@ -319,30 +339,54 @@ public void controlEvent(ControlEvent event){
 public void setKeyState(boolean isPushed){
     if (key==CODED){
         try {
-            keys[keyCode+127].set(isPushed);
+            keyEvents[keyCode+127].set(isPushed);
         } catch (IndexOutOfBoundsException e) {
             print("Key not supported \n");
         }
     }
     else {
-        keys[key].set(isPushed);
+        keyEvents[key].set(isPushed);
     }
 }
 public void keyPressed(){
-    if (key=='n'){
-        world.add(gameObjs.get(0).spawnBody());
+    //testing out some combinations of EVENTS and BEHAVIOURS
+    if (!playing){
+        if ((key=='s')&&(selectedGameObj!=null)){
+             keyEvents['s'].add(new Spawn(selectedGameObj, world));
+        }
+        else if ((key=='x')&&(selectedGameObj!=null)){
+            CollisionEvent c = new CollisionEvent(Integer.toString(selectedGameObj.getID()));
+            c.add(new Destroy(selectedGameObj, world, false));
+            collisionEvents.add(c);
+        }
+        else if ((key=='f')&&(selectedGameObj!=null)){
+            print("new frequency \n");
+            FrequencyEvent f = new FrequencyEvent(3);
+            f.add(new Spawn(selectedGameObj, world));
+            frequencyEvents.add(f);
+        }
     }
-    setKeyState(true);
+    else setKeyState(true);
 }
 
 public void keyReleased(){
-    setKeyState(false);
+    if (playing) setKeyState(false);
 }
 
 public void contactStarted(FContact contact){
     currentContact = contact;
+    for (CollisionEvent c : collisionEvents){
+        if (c.isSingleBodied()&&currentContact.contains(c.getBody1())){
+            c.set(true);
+            c.set(false);
+        }
+        else if (currentContact.contains(c.getBody1(), c.getBody2())){
+            c.set(true);
+            c.set(false);
+        }
+    }
 }
 
 public void contactEnd(FContact contact){
-    currentContact = null;
+    //currentContact = null;
 }

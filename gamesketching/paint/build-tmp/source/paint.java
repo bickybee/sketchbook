@@ -9,6 +9,7 @@ import controlP5.*;
 import java.awt.geom.*; 
 import fisica.*; 
 import java.lang.reflect.*; 
+import java.util.Random.*; 
 import fisica.*; 
 import java.util.List; 
 import java.lang.reflect.*; 
@@ -30,6 +31,7 @@ import java.io.OutputStream;
 import java.io.IOException; 
 
 public class paint extends PApplet {
+
 
 
 
@@ -79,6 +81,10 @@ FWorld world;
 KeyPublisher[] keys;
 PGraphics background;
 FContact currentContact;
+KeyEvent[] keyEvents;
+ArrayList<CollisionEvent> collisionEvents;
+ArrayList<FrequencyEvent> frequencyEvents;
+Random random;
 
 public void setup() {
     
@@ -94,16 +100,23 @@ public void setup() {
     mode = Mode.PEN;
     translating = false;
     //
-    keys = new KeyPublisher[200]; //corresponds to each key, ascii up to 127 and with an offset of 127 for coded keys
-    for (int i = 0; i < keys.length; i++){
-        keys[i] = new KeyPublisher(i);
+    keyEvents = new KeyEvent[200]; //corresponds to each key, ascii up to 127 and with an offset of 127 for coded keys
+    for (int i = 0; i < keyEvents.length; i++){
+        keyEvents[i] = new KeyEvent(i);
     }
     gameObjs = new ArrayList<GameObj>();
+    collisionEvents = new ArrayList<CollisionEvent>();
+    frequencyEvents = new ArrayList<FrequencyEvent>();
+    random = new Random();
     Fisica.init(this);
     world = new FWorld();
     //currentContact = new FContact();
     world.setGravity(0, 0);
     world.setEdges();
+    world.left.setName("left");
+    world.right.setName("right");
+    world.top.setName("top");
+    world.bottom.setName("bottom");
 
     playing = false;
     currentID = 0;
@@ -173,6 +186,17 @@ public void draw() {
     if (playing){
         world.step();
         for (GameObj obj: gameObjs) obj.update();
+        for (FrequencyEvent f : frequencyEvents){
+            if (f.getFrequency()==0){
+                f.set(true);
+                f.set(false);
+            }
+            else if ((millis()*100)==f.getFrequency()){
+                print("millis \n");
+                f.set(true);
+                f.set(false);
+            }
+        }
         reDraw();
     }
     //if in paint mode,
@@ -202,7 +226,6 @@ public void gameObj(int val){
     if (selectedStrokes.getSize() != 0){
         GameObj newObj = new GameObj(currentID, selectedStrokes, world, gui); //create entity
         gameObjs.add(newObj);
-        keys['a'].addSubscriber(newObj, "testMethod");
         currentID++;
         for (Stroke s : selectedStrokes.getMembers()){
             canvasStrokes.removeMember(s);
@@ -314,18 +337,16 @@ public void controlEvent(ControlEvent event){
 
             //TESTING KEY BINDINGS FOR CONTROL
             if (obj.getUI().getState(6)){
-                keys[127+UP].addSubscriber(obj, "moveUp");
-                keys[127+DOWN].addSubscriber(obj, "moveDown");
-                keys[127+LEFT].addSubscriber(obj, "moveLeft");
-                keys[127+RIGHT].addSubscriber(obj, "moveRight");
-                obj.getBody().setDensity(500); // "kinematic" body lol
+                keyEvents[127+UP].add(new SimpleMotion(obj, new PVector(0,-500)));
+                keyEvents[127+DOWN].add(new SimpleMotion(obj, new PVector(0,500)));
+                keyEvents[127+LEFT].add(new SimpleMotion(obj, new PVector(-500,0)));
+                keyEvents[127+RIGHT].add(new SimpleMotion(obj, new PVector(500,0)));
             }
             else {
-                keys[127+UP].removeSubscriber(obj);
-                keys[127+DOWN].removeSubscriber(obj);
-                keys[127+LEFT].removeSubscriber(obj);
-                keys[127+RIGHT].removeSubscriber(obj);  
-                obj.getBody().setDensity(obj.getInitialDensity());              
+                keyEvents[127+UP].remove(obj);
+                keyEvents[127+DOWN].remove(obj);
+                keyEvents[127+LEFT].remove(obj);
+                keyEvents[127+RIGHT].remove(obj);                 
             }
             
         }
@@ -352,32 +373,56 @@ public void controlEvent(ControlEvent event){
 public void setKeyState(boolean isPushed){
     if (key==CODED){
         try {
-            keys[keyCode+127].set(isPushed);
+            keyEvents[keyCode+127].set(isPushed);
         } catch (IndexOutOfBoundsException e) {
             print("Key not supported \n");
         }
     }
     else {
-        keys[key].set(isPushed);
+        keyEvents[key].set(isPushed);
     }
 }
 public void keyPressed(){
-    if (key=='n'){
-        world.add(gameObjs.get(0).spawnBody());
+    //testing out some combinations of EVENTS and BEHAVIOURS
+    if (!playing){
+        if ((key=='s')&&(selectedGameObj!=null)){
+             keyEvents['s'].add(new Spawn(selectedGameObj, world));
+        }
+        else if ((key=='x')&&(selectedGameObj!=null)){
+            CollisionEvent c = new CollisionEvent(Integer.toString(selectedGameObj.getID()));
+            c.add(new Destroy(selectedGameObj, world, false));
+            collisionEvents.add(c);
+        }
+        else if ((key=='f')&&(selectedGameObj!=null)){
+            print("new frequency \n");
+            FrequencyEvent f = new FrequencyEvent(3);
+            f.add(new Spawn(selectedGameObj, world));
+            frequencyEvents.add(f);
+        }
     }
-    setKeyState(true);
+    else setKeyState(true);
 }
 
 public void keyReleased(){
-    setKeyState(false);
+    if (playing) setKeyState(false);
 }
 
 public void contactStarted(FContact contact){
     currentContact = contact;
+    for (CollisionEvent c : collisionEvents){
+        if (c.isSingleBodied()&&currentContact.contains(c.getBody1())){
+            c.set(true);
+            c.set(false);
+        }
+        else if (currentContact.contains(c.getBody1(), c.getBody2())){
+            c.set(true);
+            c.set(false);
+        }
+    }
 }
 
 public void contactEnd(FContact contact){
-    currentContact = null;
+    //currentContact = null;
 }
 //encompasses all possible game object behaviours
 abstract public class Behaviour{
@@ -387,6 +432,7 @@ abstract public class Behaviour{
 
 	Behaviour(GameObj obj){
 		gameObj = obj;
+		activated = true;
 	}
 
 	abstract public void update(boolean state);
@@ -397,6 +443,10 @@ abstract public class Behaviour{
 
 	public void deactivate(){
 		activated = false;
+	}
+
+	public GameObj getGameObj(){
+		return gameObj;
 	}
 
 }
@@ -433,6 +483,45 @@ public class CollisionEvent extends Event{
 	}
 
 }
+public class Destroy extends Behaviour{
+	
+	String bodyName;
+	FWorld world;
+	boolean destroyAllInstances;
+
+	Destroy(GameObj obj, FWorld w, boolean all){
+		super(obj);
+		world = w;
+		bodyName = Integer.toString(obj.getID());
+		destroyAllInstances = all;
+	}
+
+	//destroy all instances of body by default
+	//else destroy just the instance involved in a collision
+	//(hacky?)
+	public void update(boolean state){
+		print("destroy \n");
+		if (activated&&state){
+			if (destroyAllInstances){
+				for (FBody b : gameObj.getBodies()){
+					world.remove(b);
+				}
+				gameObj.resetBodies();
+			}
+			else{
+				FBody removeMe = currentContact.getBody1().getName().equals(bodyName) ?
+								currentContact.getBody1() : currentContact.getBody2();
+				world.remove(removeMe);
+				gameObj.getBodies().remove(removeMe);
+			}
+		}
+	}
+
+	public GameObj getGameObj(){
+		return gameObj;
+	}
+
+}
 abstract public class Event{
 	
 	ArrayList<Behaviour> subscribers;
@@ -446,7 +535,7 @@ abstract public class Event{
 	public void set(boolean state){
 		if (isOccuring != state){
 			isOccuring = state;
-			notify();	
+			notifySubscribers();	
 		}
 	}
 
@@ -460,10 +549,37 @@ abstract public class Event{
 		subscribers.remove(b);
 	}
 
-	public void notifySubcribers(){
+	public void remove(GameObj obj){
+		GameObj removeMe;
+		for (int i = 0; i < subscribers.size(); i++){
+			if (subscribers.get(i).getGameObj()==obj){
+				subscribers.remove(i);
+				break;
+			}
+		}
+	}
+
+	public void notifySubscribers(){
 		for (Behaviour b : subscribers){
 			b.update(isOccuring);
 		}
+	}
+
+}
+public class FrequencyEvent extends Event{
+	
+	int frequency; //in seconds
+	//-1 means random
+	//0 means ongoing
+	//any other number is actually a frequency
+
+	FrequencyEvent(int f){
+		super();
+		frequency = f;
+	}
+
+	public float getFrequency(){
+		return frequency;
 	}
 
 }
@@ -712,8 +828,9 @@ class GameObj{
     }
   }
 
-  public void setPickup(boolean state){
-    pickup = state;
+  public void setMassive(boolean state){
+    if (state) templateBody.setDensity(500);
+    else templateBody.setDensity(initialDensity);
   }
 
   public void setBouncy(boolean state){
@@ -730,40 +847,6 @@ class GameObj{
 
   public void setGravity(boolean state){
     gravity = state;
-  }
-
-///////////////////////////////////////////////
-// behaviours
-//////////////////////////////////////////////
-
-  public void moveUp(boolean move){
-    for (FBody b : bodies){
-      if (move) b.setVelocity(b.getVelocityX(),-500);
-      else b.setVelocity(b.getVelocityX(), 0);
-    }
-  }
-
-  public void moveDown(boolean move){
-    for (FBody b : bodies){
-    if (move) b.setVelocity(b.getVelocityX(),500);
-    else b.setVelocity(b.getVelocityX(), 0);}
-  }
-
-  public void moveRight(boolean move){
-    for (FBody b : bodies){
-    if (move) b.setVelocity(500,b.getVelocityY());
-    else b.setVelocity(0, b.getVelocityY());}
-  }
-
-  public void moveLeft(boolean move){
-    for (FBody b : bodies){
-    if (move) b.setVelocity(-500,b.getVelocityY());
-    else b.setVelocity(0, b.getVelocityY());}
-  }
-
-  public void testMethod(boolean keyPushed){
-    if (keyPushed) print("method invoked true \n");
-    else print("method invoked false \n");
   }
 
 
@@ -786,7 +869,7 @@ class GameObj{
    .addItem("static_"+id, 1)
    .addItem("sensor_"+id, 2)
    .addItem("exact_"+id, 3)
-   .addItem("pickup_"+id, 4)
+   .addItem("massive_"+id, 4)
    .addItem("bouncy_"+id, 5)
    .addItem("slippery_"+id, 6)
    .addItem("controllable_"+id, 7)
@@ -804,7 +887,7 @@ class GameObj{
     setStatic(ui.getState(0));
     setSolid(ui.getState(1));
     setExact(ui.getState(2));
-    setPickup(ui.getState(3));
+    setMassive(ui.getState(3));
     setBouncy(ui.getState(4));
     setSlippery(ui.getState(5));
     setGravity(ui.getState(7));
@@ -851,6 +934,10 @@ class GameObj{
 
   public ArrayList<FBody> getBodies(){
     return bodies;
+  }
+
+  public void resetBodies(){
+    bodies = new ArrayList<FBody>();
   }
 
 
@@ -1083,7 +1170,6 @@ public class MouseEvent extends Event{
 //redraw everything
 public void reDraw(){
     background(bg);
-    drawAllStrokes();
     if (playing) drawAllGameObjs();
     else{
         for (GameObj obj: gameObjs){
@@ -1091,6 +1177,7 @@ public void reDraw(){
             else obj.getStrokes().drawBounds(color(50,206,135));
         }
     }
+    drawAllStrokes();
 }
 
 //draw points corresponding to current pen location
@@ -1395,20 +1482,29 @@ class Point{
         return weight;
     }
 }
-public class SimpleMovement extends Behaviour{
+public class SimpleMotion extends Behaviour{
 
 	PVector velocity;
-	FBody parentBody;
+	ArrayList<FBody> bodies;
 
-	SimpleMovement(GameObj o, PVector v){
+	SimpleMotion(GameObj o, PVector v){
 		super(o);
 		velocity = v;
-		parentBody = gameObj.getBody();
+		bodies = gameObj.getBodies();
 	}
 
 	public void update(boolean state){
-		if (state) parentBody.setVelocity(velocity.x, velocity.y);
-		else parentBody.setVelocity(0, 0);
+		if (state){
+			for (FBody b : bodies){
+				b.setVelocity(velocity.x==0 ? b.getVelocityX() : velocity.x,
+							velocity.y==0 ? b.getVelocityY() : velocity.y);
+			}
+		}
+		else{
+			for (FBody b : bodies){
+				b.setVelocity(0, 0);
+			}
+		}
 	}
 
 }
@@ -1423,6 +1519,7 @@ public class Spawn extends Behaviour{
 
 	public void update(boolean state){
 		if (activated&&state){
+			print("spawning");
 			world.add(gameObj.spawnBody());
 		}
 	}

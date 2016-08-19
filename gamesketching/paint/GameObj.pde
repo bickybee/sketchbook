@@ -228,8 +228,9 @@ class GameObj{
     }
   }
 
-  public void setPickup(boolean state){
-    pickup = state;
+  public void setMassive(boolean state){
+    if (state) templateBody.setDensity(500);
+    else templateBody.setDensity(initialDensity);
   }
 
   public void setBouncy(boolean state){
@@ -246,40 +247,6 @@ class GameObj{
 
   public void setGravity(boolean state){
     gravity = state;
-  }
-
-///////////////////////////////////////////////
-// behaviours
-//////////////////////////////////////////////
-
-  public void moveUp(boolean move){
-    for (FBody b : bodies){
-      if (move) b.setVelocity(b.getVelocityX(),-500);
-      else b.setVelocity(b.getVelocityX(), 0);
-    }
-  }
-
-  public void moveDown(boolean move){
-    for (FBody b : bodies){
-    if (move) b.setVelocity(b.getVelocityX(),500);
-    else b.setVelocity(b.getVelocityX(), 0);}
-  }
-
-  public void moveRight(boolean move){
-    for (FBody b : bodies){
-    if (move) b.setVelocity(500,b.getVelocityY());
-    else b.setVelocity(0, b.getVelocityY());}
-  }
-
-  public void moveLeft(boolean move){
-    for (FBody b : bodies){
-    if (move) b.setVelocity(-500,b.getVelocityY());
-    else b.setVelocity(0, b.getVelocityY());}
-  }
-
-  public void testMethod(boolean keyPushed){
-    if (keyPushed) print("method invoked true \n");
-    else print("method invoked false \n");
   }
 
 
@@ -302,7 +269,7 @@ class GameObj{
    .addItem("static_"+id, 1)
    .addItem("sensor_"+id, 2)
    .addItem("exact_"+id, 3)
-   .addItem("pickup_"+id, 4)
+   .addItem("massive_"+id, 4)
    .addItem("bouncy_"+id, 5)
    .addItem("slippery_"+id, 6)
    .addItem("controllable_"+id, 7)
@@ -320,7 +287,7 @@ class GameObj{
     setStatic(ui.getState(0));
     setSolid(ui.getState(1));
     setExact(ui.getState(2));
-    setPickup(ui.getState(3));
+    setMassive(ui.getState(3));
     setBouncy(ui.getState(4));
     setSlippery(ui.getState(5));
     setGravity(ui.getState(7));
@@ -367,6 +334,10 @@ class GameObj{
 
   public ArrayList<FBody> getBodies(){
     return bodies;
+  }
+
+  public void resetBodies(){
+    bodies = new ArrayList<FBody>();
   }
 
 

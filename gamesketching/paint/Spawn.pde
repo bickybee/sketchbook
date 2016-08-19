@@ -9,6 +9,7 @@ public class Spawn extends Behaviour{
 
 	public void update(boolean state){
 		if (activated&&state){
+			print("spawning");
 			world.add(gameObj.spawnBody());
 		}
 	}

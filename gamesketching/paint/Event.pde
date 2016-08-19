@@ -11,7 +11,7 @@ abstract public class Event{
 	public void set(boolean state){
 		if (isOccuring != state){
 			isOccuring = state;
-			notify();	
+			notifySubscribers();	
 		}
 	}
 
@@ -25,7 +25,17 @@ abstract public class Event{
 		subscribers.remove(b);
 	}
 
-	public void notifySubcribers(){
+	public void remove(GameObj obj){
+		GameObj removeMe;
+		for (int i = 0; i < subscribers.size(); i++){
+			if (subscribers.get(i).getGameObj()==obj){
+				subscribers.remove(i);
+				break;
+			}
+		}
+	}
+
+	public void notifySubscribers(){
 		for (Behaviour b : subscribers){
 			b.update(isOccuring);
 		}
