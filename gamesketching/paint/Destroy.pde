@@ -15,7 +15,6 @@ public class Destroy extends Behaviour{
 	//else destroy just the instance involved in a collision
 	//(hacky?)
 	public void update(boolean state){
-		print("destroy \n");
 		if (activated&&state){
 			if (destroyAllInstances){
 				for (FBody b : gameObj.getBodies()){

@@ -4,6 +4,8 @@
 //redraw everything
 void reDraw(){
     background(bg);
+    pushMatrix();
+    scale(scaleValue);
     if (playing) drawAllGameObjs();
     else{
         for (GameObj obj: gameObjs){
@@ -12,6 +14,7 @@ void reDraw(){
         }
     }
     drawAllStrokes();
+    popMatrix();
 }
 
 //draw points corresponding to current pen location

@@ -1,11 +1,11 @@
 public class FrequencyEvent extends Event{
 	
-	int frequency; //in seconds
-	//-1 means random
+	float frequency; //in seconds
+	//-1 means random 
 	//0 means ongoing
 	//any other number is actually a frequency
 
-	FrequencyEvent(int f){
+	FrequencyEvent(float f){
 		super();
 		frequency = f;
 	}

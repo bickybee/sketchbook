@@ -9,6 +9,7 @@ class GameObj{
 
 	private StrokeGroup strokeGroup; 
   private PGraphics raster;
+  private ArrayList<PGraphics> frames;
 
   private FBody templateBody; //template templateBody
   private ArrayList<FBody> bodies; //if there are duplicate bodies
@@ -19,8 +20,8 @@ class GameObj{
   private PVector rasterPosition;
   private CheckBox ui; //attribute editor ui
   private Button selectBtn; //used to select object for editing
-  private Method[] keyListeners;
   private float initialDensity;
+  private ArrayList<Behaviour> behaviours;
 
   //some attribute bools
   private  boolean pickup, visible, slippery, bouncy, isInWorld, selected, gravity;
@@ -31,12 +32,12 @@ class GameObj{
 
     //label strokes as belonging to this game object
     for (Stroke s: strokeGroup.getMembers()) s.addToGameObj(id, this);
-    keyListeners = new Method[200];
     w = strokeGroup.getRight() - strokeGroup.getLeft();
     h = strokeGroup.getBottom() - strokeGroup.getTop();
     raster = createGraphics((int)(w+RASTER_PADDING),(int)(h+RASTER_PADDING));
     templateBody = setupBody(false);
     bodies = new ArrayList<FBody>();
+    behaviours = new ArrayList<Behaviour>();
     position = new PVector(strokeGroup.getLeft(), strokeGroup.getTop());
     rasterPosition = new PVector(position.x, position.y);
 
@@ -138,7 +139,6 @@ class GameObj{
 
 //use giftwrap algorithm to create convex templateBody FPoly
   private FPoly createHull(){
-    print("create Hull \n");
     GiftWrap wrapper = new GiftWrap();
     if (convexHull==null){
       ArrayList<Point> allKeyPoints = new ArrayList<Point>();
@@ -302,29 +302,6 @@ class GameObj{
   }
 
 ///////////////////////////////////////////////
-// key listening
-//////////////////////////////////////////////
-
-  public void bindMethodToKey(Method method, int keyVal){
-    keyListeners[keyVal] = method;
-  }
-
-  public void removeKeyBinding(int keyVal){
-    keyListeners[keyVal] = null;
-  }
-
-  //receive notifications from keys
-  public void notify(boolean isPushed, int keyVal){
-    if (keyListeners[keyVal]!=null){
-      try {
-        keyListeners[keyVal].invoke(this, isPushed);
-      } catch (Exception e){
-        print(e+" from GameObj notify \n");
-      }
-    }
-  }
-
-///////////////////////////////////////////////
 // getters and setters
 //////////////////////////////////////////////
 
@@ -337,9 +314,18 @@ class GameObj{
   }
 
   public void resetBodies(){
-    bodies = new ArrayList<FBody>();
+    for (int i = bodies.size()-1; i == 0; i--){
+      bodies.remove(i);
+    }
   }
 
+  public void setRaster(PGraphics newRaster){
+    raster = newRaster;
+  }
+
+  public PGraphics getRaster(){
+    return raster;
+  }
 
   public StrokeGroup getStrokes(){
     return strokeGroup;

@@ -14,6 +14,9 @@ StrokeGroup canvasStrokes;
 color currentColour;
 color bg;
 StrokeGroup selectedStrokes;
+float scaleValue;
+float panX;
+float panY;
 
 //penStuff
 Mode mode;
@@ -44,7 +47,6 @@ ArrayList<GameObj> gameObjs;
 int currentID;
 GameObj selectedGameObj;
 FWorld world;
-KeyPublisher[] keys;
 PGraphics background;
 FContact currentContact;
 KeyEvent[] keyEvents;
@@ -61,6 +63,7 @@ void setup() {
     currentStroke = new ArrayList<Point>();
     canvasStrokes = new StrokeGroup();
     selectedStrokes = new StrokeGroup();
+    scaleValue = 1;
     //
     penIsDown = false;
     mode = Mode.PEN;
@@ -148,18 +151,19 @@ void draw() {
 
     //if in play mode, step through world every frame
     //update game objects accordingly
+    //handle frequency events here
     //redraw
     if (playing){
         world.step();
         for (GameObj obj: gameObjs) obj.update();
         for (FrequencyEvent f : frequencyEvents){
             if (f.getFrequency()==0){
-                f.set(true);
-                f.set(false);
+                f.set(true, true);
             }
-            else if ((millis()*100)==f.getFrequency()){
-                print("millis \n");
+            else if ((round(millis()/(f.getFrequency()*100))%10)==0){
                 f.set(true);
+            }
+            else{
                 f.set(false);
             }
         }
@@ -303,10 +307,10 @@ public void controlEvent(ControlEvent event){
 
             //TESTING KEY BINDINGS FOR CONTROL
             if (obj.getUI().getState(6)){
-                keyEvents[127+UP].add(new SimpleMotion(obj, new PVector(0,-500)));
-                keyEvents[127+DOWN].add(new SimpleMotion(obj, new PVector(0,500)));
-                keyEvents[127+LEFT].add(new SimpleMotion(obj, new PVector(-500,0)));
-                keyEvents[127+RIGHT].add(new SimpleMotion(obj, new PVector(500,0)));
+                keyEvents[127+UP].add(new Velocity(obj, new PVector(0,-500)));
+                keyEvents[127+DOWN].add(new Velocity(obj, new PVector(0,500)));
+                keyEvents[127+LEFT].add(new Velocity(obj, new PVector(-500,0)));
+                keyEvents[127+RIGHT].add(new Velocity(obj, new PVector(500,0)));
             }
             else {
                 keyEvents[127+UP].remove(obj);
@@ -349,23 +353,42 @@ public void setKeyState(boolean isPushed){
     }
 }
 public void keyPressed(){
+    //ZOOM?
+    if (key=='2'){
+        if (scaleValue>1) scaleValue+=1;
+        else scaleValue*=2;
+        reDraw();
+    }
+    else if (key=='1'){
+        if (scaleValue>1) scaleValue-=1;
+        else scaleValue/=2;
+        reDraw();
+    }
     //testing out some combinations of EVENTS and BEHAVIOURS
     if (!playing){
         if ((key=='s')&&(selectedGameObj!=null)){
              keyEvents['s'].add(new Spawn(selectedGameObj, world));
         }
         else if ((key=='x')&&(selectedGameObj!=null)){
-            CollisionEvent c = new CollisionEvent(Integer.toString(selectedGameObj.getID()));
-            c.add(new Destroy(selectedGameObj, world, false));
+            print("new collision \n");
+            CollisionEvent c = new CollisionEvent(Integer.toString(selectedGameObj.getID()),"bottom");
+            //c.add(new Destroy(selectedGameObj, world, false));
+            //c.add(new Spawn(selectedGameObj, world));
+            c.add(new Animate(selectedGameObj, gameObjs.get(1).getRaster(), 0.1));
             collisionEvents.add(c);
         }
         else if ((key=='f')&&(selectedGameObj!=null)){
             print("new frequency \n");
-            FrequencyEvent f = new FrequencyEvent(3);
-            f.add(new Spawn(selectedGameObj, world));
-            frequencyEvents.add(f);
+            FrequencyEvent threeSeconds = new FrequencyEvent(1.5);
+            threeSeconds.add(new Spawn(selectedGameObj, world));
+            FrequencyEvent ongoing = new FrequencyEvent(0);
+            ongoing.add(new Speed(selectedGameObj, 500.0, new PVector(1,0)));
+            frequencyEvents.add(threeSeconds);
+            frequencyEvents.add(ongoing);
         }
     }
+
+    //for  key events
     else setKeyState(true);
 }
 
@@ -381,6 +404,7 @@ public void contactStarted(FContact contact){
             c.set(false);
         }
         else if (currentContact.contains(c.getBody1(), c.getBody2())){
+            print("dual collision \n");
             c.set(true);
             c.set(false);
         }
