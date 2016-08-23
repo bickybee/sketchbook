@@ -374,7 +374,7 @@ public void keyPressed(){
             CollisionEvent c = new CollisionEvent(Integer.toString(selectedGameObj.getID()),"bottom");
             //c.add(new Destroy(selectedGameObj, world, false));
             //c.add(new Spawn(selectedGameObj, world));
-            c.add(new Animate(selectedGameObj, gameObjs.get(1).getRaster(), 0.1));
+            c.add(new Animate(selectedGameObj, gameObjs.get(1).getRaster(), 0.5));
             collisionEvents.add(c);
         }
         else if ((key=='f')&&(selectedGameObj!=null)){
