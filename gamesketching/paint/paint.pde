@@ -17,6 +17,7 @@ StrokeGroup selectedStrokes;
 float scaleValue;
 float panX;
 float panY;
+PGraphics newFrame;
 
 //penStuff
 Mode mode;
@@ -371,10 +372,9 @@ public void keyPressed(){
         }
         else if ((key=='x')&&(selectedGameObj!=null)){
             print("new collision \n");
-            CollisionEvent c = new CollisionEvent(Integer.toString(selectedGameObj.getID()),"bottom");
-            //c.add(new Destroy(selectedGameObj, world, false));
+            CollisionEvent c = new CollisionEvent(Integer.toString(selectedGameObj.getID()));
+            c.add(new Animate(selectedGameObj, gameObjs.get(1).getRaster(),0.5));
             //c.add(new Spawn(selectedGameObj, world));
-            c.add(new Animate(selectedGameObj, gameObjs.get(1).getRaster(), 0.5));
             collisionEvents.add(c);
         }
         else if ((key=='f')&&(selectedGameObj!=null)){
@@ -386,6 +386,15 @@ public void keyPressed(){
             frequencyEvents.add(threeSeconds);
             frequencyEvents.add(ongoing);
         }
+        // else if ((key=='r')&&(selectedStrokes.size()>0)){
+        //     selectedStrokes.createRaster(newFrame,
+        //         new PVector(selectedStrokes.getLeft(), selectedStrokes.getTop()), 4);
+        // }
+        // else if ((key=='a')&&(selectedGameObj!=null)){
+        //     print("new collision + animate");
+        //     CollisionEvent c = new CollisionEvent()
+        //     c.add(new Animate(selectedGameObj, gameObjs.get(1).getRaster(), 0.5));
+        // }
     }
 
     //for  key events
