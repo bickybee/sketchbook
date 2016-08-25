@@ -389,37 +389,112 @@ public void setKeyState(boolean isPushed){
 }
 public void keyPressed(){
     //ZOOM?
-    if (key=='2'){
-        if (scaleValue>1) scaleValue+=1;
-        else scaleValue*=2;
-        reDraw();
-    }
-    else if (key=='1'){
-        if (scaleValue>1) scaleValue-=1;
-        else scaleValue/=2;
-        reDraw();
-    }
+    // if (key=='2'){
+    //     if (scaleValue>1) scaleValue+=1;
+    //     else scaleValue*=2;
+    //     reDraw();
+    // }
+    // else if (key=='1'){
+    //     if (scaleValue>1) scaleValue-=1;
+    //     else scaleValue/=2;
+    //     reDraw();
+    // }
     //testing out some combinations of EVENTS and BEHAVIOURS
-    if (!playing){
-        if ((key=='s')&&(selectedGameObj!=null)){
-             keyEvents['s'].add(new Spawn(selectedGameObj, world));
+    if ((!playing)&&(selectedGameObj!=null)){
+        switch (key){
+            //destroy on collision
+            case 'x':
+                print("new collision \n");
+                CollisionEvent c = new CollisionEvent(Integer.toString(selectedGameObj.getID()));
+                c.add(new Destroy(selectedGameObj, world, false));
+                collisionEvents.add(c);
+                break;
+
+            //animate on up key (with newFrame raster)
+            case 'a':
+                print("new animate \n");
+                keyEvents[UP+127].add(new Animate(selectedGameObj, newFrame, 0));
+                break;
+
+            //for the ball in pong
+            case 'b':
+                print("ball behaviour \n");
+                FrequencyEvent f = new FrequencyEvent(0);
+                f.add(new Speed(selectedGameObj, 500, new PVector(1,0)));
+                frequencyEvents.add(f);
+                CollisionEvent left = new CollisionEvent(Integer.toString(selectedGameObj.getID()), "left");
+                CollisionEvent right = new CollisionEvent(Integer.toString(selectedGameObj.getID()), "right");
+                Destroy d = new Destroy(selectedGameObj, world, true);
+                Spawn s = new Spawn(selectedGameObj, world);
+                left.add(d);
+                left.add(s);
+                right.add(d);
+                right.add(s);
+                collisionEvents.add(left);
+                collisionEvents.add(right);
+                break;
+
+            //for the paddle in pong
+            case 'r':
+                print("right paddle behaviour \n");
+                keyEvents[UP+127].add(new Velocity(selectedGameObj, new PVector(0,-500)));
+                keyEvents[DOWN+127].add(new Velocity(selectedGameObj, new PVector(0,500)));
+                break;
+
+            case 'l':
+                print("left paddle behaviour \n");
+                keyEvents['w'].add(new Velocity(selectedGameObj, new PVector(0,-500)));
+                keyEvents['s'].add(new Velocity(selectedGameObj, new PVector(0,500)));
+                break;
+
+            //spawn at consistent frequency
+            case 's':
+                print("spawning behaviour");
+                FrequencyEvent spawn = new FrequencyEvent(1.5f);
+                CollisionEvent left2 = new CollisionEvent(Integer.toString(selectedGameObj.getID()), "left");
+                CollisionEvent right2 = new CollisionEvent(Integer.toString(selectedGameObj.getID()), "right");
+                Destroy d2 = new Destroy(selectedGameObj, world, false);
+                spawn.add(new Spawn(selectedGameObj, world));
+                left2.add(d2);
+                right2.add(d2);
+                collisionEvents.add(left2);
+                collisionEvents.add(right2);
+                frequencyEvents.add(spawn);
+                break;
+
+            case '2':
+                print("move right");
+                FrequencyEvent moveR = new FrequencyEvent(0);
+                moveR.add(new Velocity(selectedGameObj, new PVector(500,0)));
+                frequencyEvents.add(moveR);
+                break;
+
+            case '1':
+                print("move left");
+                FrequencyEvent moveL = new FrequencyEvent(0);
+                moveL.add(new Velocity(selectedGameObj, new PVector(-500,0)));
+                frequencyEvents.add(moveL);
+                break;
         }
-        else if ((key=='x')&&(selectedGameObj!=null)){
-            print("new collision \n");
-            CollisionEvent c = new CollisionEvent(Integer.toString(selectedGameObj.getID()));
-            c.add(new Animate(selectedGameObj, gameObjs.get(1).getRaster(),0.5f));
-            //c.add(new Spawn(selectedGameObj, world));
-            collisionEvents.add(c);
-        }
-        else if ((key=='f')&&(selectedGameObj!=null)){
-            print("new frequency \n");
-            FrequencyEvent threeSeconds = new FrequencyEvent(1.5f);
-            threeSeconds.add(new Spawn(selectedGameObj, world));
-            FrequencyEvent ongoing = new FrequencyEvent(0);
-            ongoing.add(new Speed(selectedGameObj, 500.0f, new PVector(1,0)));
-            frequencyEvents.add(threeSeconds);
-            frequencyEvents.add(ongoing);
-        }
+        // if ((key=='s')&&(selectedGameObj!=null)){
+        //      keyEvents['s'].add(new Spawn(selectedGameObj, world));
+        // }
+        // else if ((key=='x')&&(selectedGameObj!=null)){
+        //     print("new collision \n");
+        //     CollisionEvent c = new CollisionEvent(Integer.toString(selectedGameObj.getID()));
+        //     c.add(new Animate(selectedGameObj, gameObjs.get(1).getRaster(),0.5));
+        //     //c.add(new Spawn(selectedGameObj, world));
+        //     collisionEvents.add(c);
+        // }
+        // else if ((key=='f')&&(selectedGameObj!=null)){
+        //     print("new frequency \n");
+        //     FrequencyEvent threeSeconds = new FrequencyEvent(1.5);
+        //     threeSeconds.add(new Spawn(selectedGameObj, world));
+        //     FrequencyEvent ongoing = new FrequencyEvent(0);
+        //     ongoing.add(new Speed(selectedGameObj, 500.0, new PVector(1,0)));
+        //     frequencyEvents.add(threeSeconds);
+        //     frequencyEvents.add(ongoing);
+        // }
         // else if ((key=='r')&&(selectedStrokes.size()>0)){
         //     selectedStrokes.createRaster(newFrame,
         //         new PVector(selectedStrokes.getLeft(), selectedStrokes.getTop()), 4);
@@ -429,6 +504,16 @@ public void keyPressed(){
         //     CollisionEvent c = new CollisionEvent()
         //     c.add(new Animate(selectedGameObj, gameObjs.get(1).getRaster(), 0.5));
         // }
+    }
+
+    else if ((!playing)&&selectedStrokes.getSize()>0){
+        //create animation frame
+        if (key=='k'){
+            print("new keyframe");
+            newFrame = createGraphics((int)(selectedStrokes.getRight()-selectedStrokes.getLeft()+4),
+                (int)(selectedStrokes.getBottom()-selectedStrokes.getTop()+4));
+            selectedStrokes.createRaster(newFrame,new PVector(selectedStrokes.getLeft(), selectedStrokes.getTop()), 4);
+        }
     }
 
     //for  key events
@@ -474,18 +559,24 @@ public class Animate extends Behaviour{
 
 	public void update(boolean state){
 		print("animate \n");
-		gameObj.setRaster(frame);
+		if (state){
+			gameObj.setRaster(frame);
 
-		if (frameLength > 0){
-			Timer timer = new Timer();
-			timer.schedule(new TimerTask() 
-				{
-				  @Override
-				  public void run() 
-				  {
-				       gameObj.setRaster(original);
-				  }
-				}, (long)(frameLength*1000));
+			if (frameLength > 0){
+				Timer timer = new Timer();
+				timer.schedule(new TimerTask() 
+					{
+					  @Override
+					  public void run() 
+					  {
+					       gameObj.setRaster(original);
+					  }
+					}, (long)(frameLength*1000));
+			}
+		}
+
+		else {
+			gameObj.setRaster(original);
 		}
 
 	}
@@ -729,7 +820,7 @@ class GameObj{
   //for each world.step, move raster position to game position
   public void update(){
     for (FBody b : bodies){
-      if (gravity) b.addImpulse(0, 80);
+      if (gravity) b.addImpulse(0, 200);
     }
   }
 

@@ -15,18 +15,24 @@ public class Animate extends Behaviour{
 
 	public void update(boolean state){
 		print("animate \n");
-		gameObj.setRaster(frame);
+		if (state){
+			gameObj.setRaster(frame);
 
-		if (frameLength > 0){
-			Timer timer = new Timer();
-			timer.schedule(new TimerTask() 
-				{
-				  @Override
-				  public void run() 
-				  {
-				       gameObj.setRaster(original);
-				  }
-				}, (long)(frameLength*1000));
+			if (frameLength > 0){
+				Timer timer = new Timer();
+				timer.schedule(new TimerTask() 
+					{
+					  @Override
+					  public void run() 
+					  {
+					       gameObj.setRaster(original);
+					  }
+					}, (long)(frameLength*1000));
+			}
+		}
+
+		else {
+			gameObj.setRaster(original);
 		}
 
 	}

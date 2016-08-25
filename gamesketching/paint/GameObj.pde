@@ -61,7 +61,7 @@ class GameObj{
   //for each world.step, move raster position to game position
   public void update(){
     for (FBody b : bodies){
-      if (gravity) b.addImpulse(0, 80);
+      if (gravity) b.addImpulse(0, 200);
     }
   }
 
