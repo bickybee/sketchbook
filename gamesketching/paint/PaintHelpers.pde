@@ -12,6 +12,7 @@ void reDraw(){
         }
         drawAllStrokes();
     }
+    drawAllStrokes();
 }
 
 //draw points corresponding to current pen location

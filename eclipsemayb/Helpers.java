@@ -1,1 +1,0 @@
-// paint helper functions

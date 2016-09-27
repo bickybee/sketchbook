@@ -6,6 +6,7 @@ abstract public class Behaviour{
 
 	Behaviour(GameObj obj){
 		gameObj = obj;
+		activated = true;
 	}
 
 	abstract public void update(boolean state);
@@ -16,6 +17,10 @@ abstract public class Behaviour{
 
 	public void deactivate(){
 		activated = false;
+	}
+
+	public GameObj getGameObj(){
+		return gameObj;
 	}
 
 }
