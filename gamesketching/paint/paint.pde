@@ -68,7 +68,7 @@ void setup() {
     gameObjs = new ArrayList<GameObj>();
     Fisica.init(this);
     world = new FWorld();
-    currentContact = new FContact();
+    //currentContact = new FContact();
     world.setGravity(0, 0);
     world.setEdges();
 
