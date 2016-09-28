@@ -37,6 +37,7 @@ int buttonH = 40;
 Button undoBtn;
 Button objBtn;
 Button playBtn;
+Button clearBtn;
 RadioButton penRadio;
 RadioButton colourRadio;
 RadioButton modeRadio;
@@ -82,7 +83,7 @@ void setup() {
     world = new FWorld();
     //currentContact = new FContact();
     world.setGravity(0, 0);
-    world.setEdges();
+    world.setEdges(buttonW+5,0,width,height);
     world.left.setName("left");
     world.right.setName("right");
     world.top.setName("top");
@@ -143,6 +144,12 @@ void setup() {
                 .addItem("draw",1)
                 .addItem("play",2);
     modeRadio.getItem("draw").setState(true);
+    
+    //clearBtn = gui.addButton("clear")
+    //          .setPosition(0,buttonH*12+40)
+    //          .setSize(buttonW, buttonH)
+    //          .activateBy(ControlP5.PRESSED);
+            
 
     background(bg);
 }
@@ -205,6 +212,18 @@ public void gameObj(int val){
         reDraw();
     } 
 }
+
+////undo stroke button handler
+//public void clear(int val){
+//    gameObjs.clear();
+//    collisionEvents.clear();
+//    frequencyEvents.clear();
+//    playing = false;
+//    currentID = 0;
+//    canvasStrokes = new StrokeGroup();
+//    selectedStrokes = new StrokeGroup();
+//    reDraw();
+//}
 
 //play vs. draw mode, radio handler
 public void mode(int val){

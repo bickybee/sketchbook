@@ -6,6 +6,9 @@ class GameObj{
 
   //padding required to account for stroke width
   static final float RASTER_PADDING = 4f;
+  
+  static final float BOUNCINESS = 0.6;
+  static final float MASSIVENESS = 1500;
 
 	private StrokeGroup strokeGroup; 
   private PGraphics raster;
@@ -203,7 +206,7 @@ class GameObj{
     newBody.setSensor(templateBody.isSensor());
     newBody.setDensity(templateBody.getDensity());
     newBody.setFriction(slippery ? 0 : 10);
-    newBody.setRestitution(bouncy ? 1 : 0);
+    newBody.setRestitution(bouncy ? BOUNCINESS : 0);
     newBody.setDamping(0);
     newBody.setName(Integer.toString(id));
     return newBody;
@@ -229,13 +232,13 @@ class GameObj{
   }
 
   public void setMassive(boolean state){
-    if (state) templateBody.setDensity(500);
+    if (state) templateBody.setDensity(MASSIVENESS);
     else templateBody.setDensity(initialDensity);
   }
 
   public void setBouncy(boolean state){
     bouncy = state;
-    if (bouncy) templateBody.setRestitution(1);
+    if (bouncy) templateBody.setRestitution(BOUNCINESS);
     else templateBody.setRestitution(0);
   }
 
