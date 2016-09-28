@@ -145,10 +145,10 @@ void setup() {
                 .addItem("play",2);
     modeRadio.getItem("draw").setState(true);
     
-    //clearBtn = gui.addButton("clear")
-    //          .setPosition(0,buttonH*12+40)
-    //          .setSize(buttonW, buttonH)
-    //          .activateBy(ControlP5.PRESSED);
+    clearBtn = gui.addButton("clear")
+              .setPosition(0,buttonH*12+40)
+              .setSize(buttonW, buttonH)
+              .activateBy(ControlP5.PRESSED);
             
 
     background(bg);
@@ -214,16 +214,18 @@ public void gameObj(int val){
 }
 
 ////undo stroke button handler
-//public void clear(int val){
-//    gameObjs.clear();
-//    collisionEvents.clear();
-//    frequencyEvents.clear();
-//    playing = false;
-//    currentID = 0;
-//    canvasStrokes = new StrokeGroup();
-//    selectedStrokes = new StrokeGroup();
-//    reDraw();
-//}
+public void clear(int val){
+    for (GameObj o: gameObjs){
+        deleteObj(o);
+    }
+   collisionEvents.clear();
+   frequencyEvents.clear();
+   playing = false;
+   currentID = 0;
+   canvasStrokes = new StrokeGroup();
+   selectedStrokes = new StrokeGroup();
+   reDraw();
+}
 
 //play vs. draw mode, radio handler
 public void mode(int val){
@@ -396,15 +398,15 @@ public void keyPressed(){
                 break;
 
             //animate on collision (with newFrame raster)
-            case 'a':
-                print("new collide-animate \n");
-                CollisionEvent c2 = new CollisionEvent(Integer.toString(selectedGameObj.getID()));
-                c2.add(new Animate(selectedGameObj, newFrame, 0));
-                collisionEvents.add(c2);
-                break;
+            // case 'a':
+            //     print("new collide-animate \n");
+            //     CollisionEvent c2 = new CollisionEvent(Integer.toString(selectedGameObj.getID()));
+            //     c2.add(new Animate(selectedGameObj, newFrame, 0));
+            //     collisionEvents.add(c2);
+            //     break;
 
             //animate on up key (with newFrame raster)
-            case 'u':
+            case 'a':
                 print("new up-animate \n");
                 keyEvents[UP+127].add(new Animate(selectedGameObj, newFrame, 0));
                 break;

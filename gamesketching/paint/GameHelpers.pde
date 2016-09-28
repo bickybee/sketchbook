@@ -6,10 +6,15 @@ public void startGame(){
 	}
 }
 
-void stopGame(){
+public void stopGame(){
 	for (GameObj obj: gameObjs){
 		obj.revert();
 	}
 	world.step();
 
+}
+
+public void deleteObj(GameObj obj){
+	obj.hideUI();
+    gameObjs.remove(obj);
 }
