@@ -119,6 +119,7 @@ void penHover(){
 //returns intersected stroke
 void eraseFrom(StrokeGroup strokes){
     for (int i = 0; i < strokes.getMembers().size(); i++){
+        print ("i: "+i+", size:"+strokes.getMembers().size()+"\n");
         //if erasing line intersects stroke, remove it from list of strokes
         if (strokes.getMembers().get(i).intersects(mouseX, mouseY, pmouseX, pmouseY)){
             //if this stroke is part of the current stroke selection, erase the whole selection
@@ -132,8 +133,8 @@ void eraseFrom(StrokeGroup strokes){
 
 void eraseFrom(GameObj obj){
     eraseFrom(obj.getStrokes());
-    obj.updateStrokes();
-    if (obj.getStrokes().getSize()==0){ //if there are no more strokes left in the obj, remove it
+    if (obj.getStrokes().getSize()>0) obj.updateStrokes();
+    else { //if there are no more strokes left in the obj, remove it
         obj.hideUI();
         gameObjs.remove(obj);
         selectedGameObj = null;

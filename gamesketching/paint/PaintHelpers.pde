@@ -4,17 +4,15 @@
 //redraw everything
 void reDraw(){
     background(bg);
-    pushMatrix();
-    scale(scaleValue);
     if (playing) drawAllGameObjs();
     else{
         for (GameObj obj: gameObjs){
             if (!obj.isSelected()) obj.getStrokes().drawBounds(color(135,206,250));
             else obj.getStrokes().drawBounds(color(50,206,135));
         }
+        drawAllStrokes();
     }
     drawAllStrokes();
-    popMatrix();
 }
 
 //draw points corresponding to current pen location

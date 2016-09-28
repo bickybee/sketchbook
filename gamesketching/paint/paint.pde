@@ -395,9 +395,17 @@ public void keyPressed(){
                 collisionEvents.add(c);
                 break;
 
-            //animate on up key (with newFrame raster)
+            //animate on collision (with newFrame raster)
             case 'a':
-                print("new animate \n");
+                print("new collide-animate \n");
+                CollisionEvent c2 = new CollisionEvent(Integer.toString(selectedGameObj.getID()));
+                c2.add(new Animate(selectedGameObj, newFrame, 0));
+                collisionEvents.add(c2);
+                break;
+
+            //animate on up key (with newFrame raster)
+            case 'u':
+                print("new up-animate \n");
                 keyEvents[UP+127].add(new Animate(selectedGameObj, newFrame, 0));
                 break;
 
@@ -436,14 +444,14 @@ public void keyPressed(){
             case 's':
                 print("spawning behaviour");
                 FrequencyEvent spawn = new FrequencyEvent(1.5);
-                CollisionEvent left2 = new CollisionEvent(Integer.toString(selectedGameObj.getID()), "left");
-                CollisionEvent right2 = new CollisionEvent(Integer.toString(selectedGameObj.getID()), "right");
-                Destroy d2 = new Destroy(selectedGameObj, world, false);
+                // CollisionEvent left2 = new CollisionEvent(Integer.toString(selectedGameObj.getID()), "left");
+                // CollisionEvent right2 = new CollisionEvent(Integer.toString(selectedGameObj.getID()), "right");
+                // Destroy d2 = new Destroy(selectedGameObj, world, false);
                 spawn.add(new Spawn(selectedGameObj, world));
-                left2.add(d2);
-                right2.add(d2);
-                collisionEvents.add(left2);
-                collisionEvents.add(right2);
+                // left2.add(d2);
+                // right2.add(d2);
+                // collisionEvents.add(left2);
+                // collisionEvents.add(right2);
                 frequencyEvents.add(spawn);
                 break;
 

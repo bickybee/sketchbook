@@ -31,7 +31,7 @@ public class Animate extends Behaviour{
 			}
 		}
 
-		else {
+		else if (frameLength==0) {
 			gameObj.setRaster(original);
 		}
 
