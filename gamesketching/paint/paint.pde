@@ -215,6 +215,7 @@ public void gameObj(int val){
 
 ////undo stroke button handler
 public void clear(int val){
+    selectedGameObj = null;
     for (GameObj o: gameObjs){
         deleteObj(o);
     }
@@ -505,6 +506,7 @@ public void keyPressed(){
         //create animation frame
         if (key=='k'){
             print("new keyframe");
+            selectedStrokes.addToFrame();
             newFrame = createGraphics((int)(selectedStrokes.getRight()-selectedStrokes.getLeft()+4),
                 (int)(selectedStrokes.getBottom()-selectedStrokes.getTop()+4));
             selectedStrokes.createRaster(newFrame,new PVector(selectedStrokes.getLeft(), selectedStrokes.getTop()), 4);

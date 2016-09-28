@@ -10,9 +10,8 @@ void reDraw(){
             if (!obj.isSelected()) obj.getStrokes().drawBounds(color(135,206,250));
             else obj.getStrokes().drawBounds(color(50,206,135));
         }
-        drawAllStrokes();
     }
-    //drawAllStrokes();
+    drawAllStrokes();
 }
 
 //draw points corresponding to current pen location
@@ -39,7 +38,7 @@ void drawAllStrokes(){
         selected.drawSelected();
     }
     for (Stroke stroke: canvasStrokes.getMembers()){
-        stroke.draw();
+        if (!playing || !stroke.belongsToFrame()) stroke.draw();
     }
     if(!playing){
         for (GameObj obj : gameObjs){

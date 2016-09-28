@@ -20,6 +20,7 @@ class Stroke{
     float top, bottom, left, right; //bounding box coordinates
     boolean selected;
     boolean belongsToObj;
+    boolean belongsToFrame;
     int gameObjId;
     GameObj gameObj;
     //fix this >>>
@@ -45,6 +46,7 @@ class Stroke{
         right = 0;
         selected = false;
         belongsToObj = false;
+        belongsToFrame = false;
         gameObjId = -1;
         points = new Point[size];
 
@@ -359,5 +361,13 @@ class Stroke{
 
     public GameObj getGameObj(){
         return gameObj;
+    }
+
+    public void addToFrame(){
+        belongsToFrame = true;
+    }
+
+    public boolean belongsToFrame(){
+        return belongsToFrame;
     }
 }

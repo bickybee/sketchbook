@@ -17,4 +17,5 @@ public void stopGame(){
 public void deleteObj(GameObj obj){
 	obj.hideUI();
     gameObjs.remove(obj);
+    reDraw();
 }

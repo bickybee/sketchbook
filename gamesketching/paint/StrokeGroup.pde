@@ -100,6 +100,12 @@ class StrokeGroup{
     	}
 	 }
 
+	 void addToFrame(){
+	 	for (Stroke s : members){
+	 		s.addToFrame();
+	 	}
+	 }
+
 
 // --------------------------------------
 // GETTERS AND SETTERS
