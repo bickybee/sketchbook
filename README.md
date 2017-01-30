@@ -3,7 +3,7 @@ Main project is in "gamesketching", run paint.pde as a Processing sketch. Unfort
 
 Current state of affairs is the following, UI is bleh/temporary and pretty much for debugging!
 
-<img src = "https://i.gyazo.com/6187be28920e77c35ac6e6ac1840d732.gif">
+<img src = "https://i.gyazo.com/6187be28920e77c35ac6e6ac1840d732.gif" >
 
 Spawning
 
