@@ -1,5 +1,5 @@
 ﻿# sketchbook
-Main project is in "gamesketching", run paint.pde as a Processing sketch. Unfortunately, Processing is really finicky with structuring project hierarchies, so pls don't mind the mess. Hoping to pick this up where I left off some time soon, with web technologies instead! :-)
+Main project is in "gamesketching", run paint.pde as a Processing sketch.
 
 Current state of affairs is the following, UI is bleh/temporary and pretty much for debugging!
 
